@@ -1,0 +1,1125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GitSec E2E Test Suite Dashboard</title>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;700&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <style>
+    :root {
+      --bg-dark: #0b0f19;
+      --bg-card: rgba(17, 24, 39, 0.7);
+      --bg-sidebar: rgba(13, 17, 28, 0.85);
+      --primary: #8b5cf6;
+      --primary-glow: rgba(139, 92, 246, 0.4);
+      --secondary: #ec4899;
+      --accent: #3b82f6;
+      --success: #10b981;
+      --success-glow: rgba(16, 185, 129, 0.3);
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --text: #f3f4f6;
+      --text-muted: #9ca3af;
+      --border: rgba(255, 255, 255, 0.08);
+      --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      --font-mono: 'Fira Code', monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+    }
+
+    /* Custom scrollbars */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(255, 255, 255, 0.3);
+    }
+
+    body {
+      font-family: var(--font-sans);
+      background-color: var(--bg-dark);
+      background-image: 
+        radial-gradient(at 0% 0%, rgba(139, 92, 246, 0.08) 0px, transparent 50%),
+        radial-gradient(at 100% 100%, rgba(236, 72, 153, 0.06) 0px, transparent 50%),
+        radial-gradient(at 50% 0%, rgba(59, 130, 246, 0.05) 0px, transparent 50%);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      overflow: hidden;
+    }
+
+    /* Sidebar Styling */
+    aside {
+      width: 260px;
+      background: var(--bg-sidebar);
+      backdrop-filter: blur(16px);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      z-index: 10;
+    }
+
+    .logo-container {
+      padding: 30px 24px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .logo-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      box-shadow: 0 0 16px var(--primary-glow);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 16px;
+      color: white;
+    }
+
+    .logo-text {
+      font-weight: 800;
+      font-size: 18px;
+      background: linear-gradient(to right, #ffffff, #d8b4fe);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      letter-spacing: -0.5px;
+    }
+
+    .nav-links {
+      list-style: none;
+      padding: 24px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      flex-grow: 1;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 16px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-weight: 500;
+      color: var(--text-muted);
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .nav-item:hover {
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    .nav-item.active {
+      color: white;
+      background: linear-gradient(90deg, rgba(139, 92, 246, 0.15) 0%, rgba(236, 72, 153, 0.05) 100%);
+      border: 1px solid rgba(139, 92, 246, 0.3);
+      box-shadow: 0 4px 12px rgba(139, 92, 246, 0.1);
+    }
+
+    .nav-item svg {
+      width: 20px;
+      height: 20px;
+    }
+
+    .sidebar-footer {
+      padding: 24px;
+      border-top: 1px solid var(--border);
+      font-size: 12px;
+      color: var(--text-muted);
+      text-align: center;
+    }
+
+    /* Main Content Styling */
+    main {
+      flex-grow: 1;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+      padding: 40px;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 32px;
+    }
+
+    .header-title h1 {
+      font-size: 28px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      margin-bottom: 6px;
+    }
+
+    .header-title p {
+      font-size: 14px;
+      color: var(--text-muted);
+    }
+
+    .controls-group {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .toggle-container {
+      display: flex;
+      align-items: center;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 4px;
+    }
+
+    .toggle-btn {
+      padding: 8px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-muted);
+      transition: all 0.2s;
+      border: none;
+      background: transparent;
+    }
+
+    .toggle-btn.active {
+      color: white;
+      background: var(--primary);
+      box-shadow: 0 2px 8px var(--primary-glow);
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.2s;
+      border: none;
+      color: white;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      box-shadow: 0 4px 14px var(--primary-glow);
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 18px rgba(139, 92, 246, 0.5);
+    }
+
+    .btn-danger {
+      background: var(--danger);
+      box-shadow: 0 4px 14px rgba(239, 68, 68, 0.3);
+    }
+
+    .btn-danger:hover:not(:disabled) {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 18px rgba(239, 68, 68, 0.4);
+    }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border);
+      color: var(--text);
+    }
+
+    .btn-secondary:hover:not(:disabled) {
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none !important;
+      box-shadow: none !important;
+    }
+
+    /* Metrics Cards Grid */
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 24px;
+      margin-bottom: 32px;
+    }
+
+    .metric-card {
+      background: var(--bg-card);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .metric-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 4px;
+      height: 100%;
+      background: var(--primary);
+      opacity: 0.7;
+    }
+
+    .metric-card.success::before { background: var(--success); }
+    .metric-card.warning::before { background: var(--warning); }
+    .metric-card.danger::before { background: var(--danger); }
+
+    .metric-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 8px;
+    }
+
+    .metric-value {
+      font-size: 28px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+    }
+
+    /* Tabs Styling */
+    .tab-content {
+      display: none;
+      animation: fadeIn 0.3s ease-out;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Test List Styling */
+    .test-list-card {
+      background: var(--bg-card);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 28px;
+    }
+
+    .card-header-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+    }
+
+    .card-header-row h2 {
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    .test-items-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .test-item-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px 24px;
+      transition: all 0.2s;
+    }
+
+    .test-item-row:hover {
+      background: rgba(255, 255, 255, 0.03);
+      border-color: rgba(139, 92, 246, 0.2);
+    }
+
+    .test-info {
+      flex-grow: 1;
+      margin-right: 24px;
+    }
+
+    .test-name-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 4px;
+    }
+
+    .test-filename {
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: -0.2px;
+    }
+
+    .test-desc {
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 4px 10px;
+      border-radius: 9999px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .badge-pending {
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text-muted);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .badge-running {
+      background: rgba(59, 130, 246, 0.15);
+      color: var(--accent);
+      border: 1px solid rgba(59, 130, 246, 0.3);
+      animation: pulse 1.5s infinite;
+    }
+
+    .badge-success {
+      background: rgba(16, 185, 129, 0.15);
+      color: var(--success);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+
+    .badge-danger {
+      background: rgba(239, 68, 68, 0.15);
+      color: var(--danger);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+
+    @keyframes pulse {
+      0% { opacity: 0.6; }
+      50% { opacity: 1; }
+      100% { opacity: 0.6; }
+    }
+
+    /* Console Terminal Styling */
+    .terminal-card {
+      background: #05070c;
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      display: flex;
+      flex-direction: column;
+      height: 520px;
+      overflow: hidden;
+      box-shadow: inset 0 4px 20px rgba(0,0,0,0.8);
+    }
+
+    .terminal-header {
+      background: rgba(255, 255, 255, 0.03);
+      border-bottom: 1px solid var(--border);
+      padding: 14px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .terminal-title-container {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .dot-group {
+      display: flex;
+      gap: 6px;
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.2);
+    }
+    .dot.red { background: var(--danger); }
+    .dot.yellow { background: var(--warning); }
+    .dot.green { background: var(--success); }
+
+    .terminal-title {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .terminal-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .terminal-body {
+      padding: 24px;
+      overflow-y: auto;
+      font-family: var(--font-mono);
+      font-size: 13px;
+      line-height: 1.6;
+      color: #34d399; /* retro neon green */
+      background: transparent;
+      flex-grow: 1;
+      white-space: pre-wrap;
+    }
+
+    /* Environment Config Form Styling */
+    .config-card {
+      background: var(--bg-card);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 28px;
+    }
+
+    .config-form {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 24px;
+    }
+
+    .form-group-full {
+      grid-column: span 2;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+
+    .form-group input {
+      width: 100%;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 16px;
+      color: white;
+      font-size: 14px;
+      font-family: var(--font-mono);
+      transition: border-color 0.2s;
+    }
+
+    .form-group input:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 8px rgba(139, 92, 246, 0.2);
+    }
+
+    .config-footer {
+      grid-column: span 2;
+      display: flex;
+      justify-content: flex-end;
+      gap: 12px;
+      margin-top: 16px;
+      border-top: 1px solid var(--border);
+      padding-top: 24px;
+    }
+
+    .status-toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: var(--success);
+      color: white;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 14px;
+      box-shadow: 0 4px 16px var(--success-glow);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      z-index: 1000;
+      transform: translateY(100px);
+      opacity: 0;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .status-toast.show {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Sidebar -->
+  <aside>
+    <div class="logo-container">
+      <div class="logo-icon">GS</div>
+      <div class="logo-text">GitSec E2E Panel</div>
+    </div>
+    
+    <ul class="nav-links">
+      <li class="nav-item active" onclick="switchTab('dashboard')">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" />
+        </svg>
+        <span>Kontrol Paneli</span>
+      </li>
+      <li class="nav-item" onclick="switchTab('logs')">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M17.25 6.75L22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3l-4.5 16.5" />
+        </svg>
+        <span>Canlı Log Konsolu</span>
+      </li>
+      <li class="nav-item" onclick="switchTab('env')">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.43l-1.003.828c-.293.241-.438.613-.43.992a7.723 7.723 0 010 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.43l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.28z" />
+          <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+        </svg>
+        <span>Ortam Değişkenleri</span>
+      </li>
+    </ul>
+    
+    <div class="sidebar-footer">
+      <p>Staging Test Akışı</p>
+      <p style="opacity: 0.5; margin-top: 4px;">v1.0.0</p>
+    </div>
+  </aside>
+
+  <!-- Main Panel -->
+  <main>
+    <header>
+      <div class="header-title">
+        <h1 id="page-title-h1">Test Otomasyon Paneli</h1>
+        <p id="page-title-p">Python SeleniumBase test senaryolarını çalıştırın ve yapılandırın</p>
+      </div>
+      
+      <div class="controls-group">
+        <div class="toggle-container">
+          <button class="toggle-btn active" id="headless-btn" onclick="setHeadless(true)">Arka Planda</button>
+          <button class="toggle-btn" id="headed-btn" onclick="setHeadless(false)">Canlı İzle (Arayüzlü)</button>
+        </div>
+        
+        <button class="btn btn-primary" id="run-all-btn" onclick="runTests(null)">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" style="width: 18px; height: 18px;">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.348a1.125 1.125 0 010 1.971l-11.54 6.347a1.125 1.125 0 01-1.667-.985V5.653z" />
+          </svg>
+          Tüm Testleri Çalıştır
+        </button>
+        
+        <button class="btn btn-danger" id="stop-btn" onclick="stopTests()" disabled>
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" style="width: 18px; height: 18px;">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M5.25 7.5A2.25 2.25 0 017.5 5.25h9a2.25 2.25 0 012.25 2.25v9a2.25 2.25 0 01-2.25 2.25h-9A2.25 2.25 0 015.25 16.5v-9z" />
+          </svg>
+          Testleri Durdur
+        </button>
+      </div>
+    </header>
+
+    <!-- Metrics Cards Grid -->
+    <div class="metrics-grid">
+      <div class="metric-card">
+        <span class="metric-title">Toplam Test Sayısı</span>
+        <span class="metric-value" id="stat-total">0</span>
+      </div>
+      <div class="metric-card success">
+        <span class="metric-title">Başarı Oranı</span>
+        <span class="metric-value" id="stat-rate">0%</span>
+      </div>
+      <div class="metric-card warning">
+        <span class="metric-title">Aktif Test Hedefi</span>
+        <span class="metric-value" id="stat-target" style="font-size: 20px; font-weight: 700; margin-top: 8px;">Staging</span>
+      </div>
+      <div class="metric-card danger">
+        <span class="metric-title">Hata Sayısı</span>
+        <span class="metric-value" id="stat-failed">0</span>
+      </div>
+    </div>
+
+    <!-- TAB 1: DASHBOARD -->
+    <div id="tab-dashboard" class="tab-content active">
+      <div class="test-list-card">
+        <div class="card-header-row">
+          <h2>Pytest E2E Test Senaryoları</h2>
+          <span style="font-size: 13px; color: var(--text-muted);" id="suite-status-text">Hazır</span>
+        </div>
+        
+        <div class="test-items-grid" id="tests-container">
+          <!-- Dynamically populated -->
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 2: LIVE LOGS -->
+    <div id="tab-logs" class="tab-content">
+      <div class="terminal-card">
+        <div class="terminal-header">
+          <div class="terminal-title-container">
+            <div class="dot-group">
+              <div class="dot red"></div>
+              <div class="dot yellow"></div>
+              <div class="dot green"></div>
+            </div>
+            <span class="terminal-title">bash - pytest log akışı</span>
+          </div>
+          
+          <div class="terminal-actions">
+            <label style="font-size: 12px; display: flex; align-items: center; gap: 6px; cursor: pointer; color: var(--text-muted);">
+              <input type="checkbox" id="autoscroll-chk" checked> Otomatik Kaydır
+            </label>
+            <button class="btn btn-secondary" onclick="clearConsole()" style="padding: 6px 12px; font-size: 11px;">Temizle</button>
+            <button class="btn btn-secondary" onclick="copyConsoleLogs()" style="padding: 6px 12px; font-size: 11px;">Logları Kopyala</button>
+          </div>
+        </div>
+        
+        <div class="terminal-body" id="terminal-output">Testleri çalıştırmaya hazır. Log akışı bekleniyor...</div>
+      </div>
+    </div>
+
+    <!-- TAB 3: CONFIG -->
+    <div id="tab-env" class="tab-content">
+      <div class="config-card">
+        <div class="card-header-row">
+          <h2>Ortam Değişkenleri Yapılandırması (.env)</h2>
+        </div>
+        
+        <form class="config-form" id="config-form" onsubmit="saveEnv(event)">
+          <!-- Dynamically populated -->
+          <div class="config-footer">
+            <button type="button" class="btn btn-secondary" onclick="loadEnv()">Formu Sıfırla</button>
+            <button type="submit" class="btn btn-primary">Yapılandırmayı Kaydet</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </main>
+
+  <!-- Status Toast -->
+  <div class="status-toast" id="toast">
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" style="width: 20px; height: 20px;">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+    <span id="toast-text">Başarılı!</span>
+  </div>
+
+  <script>
+    let isHeadless = true;
+    let testsList = [];
+    let testStatuses = {};
+    let runStats = { passed: 0, failed: 0 };
+    let testResolveHandlers = {};
+    let isSuiteRunning = false;
+    let suiteErrors = [];
+
+    // SSE Log connection
+    const eventSource = new EventSource('/api/logs');
+
+    eventSource.addEventListener('status', (e) => {
+      const data = JSON.parse(e.data);
+      updateRunningState(data.running);
+    });
+
+    eventSource.addEventListener('log', (e) => {
+      const logText = JSON.parse(e.data);
+      appendTerminalText(logText);
+    });
+
+    eventSource.addEventListener('done', (e) => {
+      const data = JSON.parse(e.data);
+      const testFile = data.testFile;
+      
+      if (testFile) {
+        testStatuses[testFile] = data.success ? 'passed' : 'failed';
+        if (testResolveHandlers[testFile]) {
+          testResolveHandlers[testFile](data.success);
+        }
+      } else {
+        testsList.forEach(t => {
+          if (testStatuses[t.filename] === 'running') {
+            testStatuses[t.filename] = data.success ? 'passed' : 'failed';
+          }
+        });
+      }
+      
+      recalculateStats();
+      renderTestsList();
+    });
+
+    function appendTerminalText(text) {
+      const term = document.getElementById('terminal-output');
+      const shouldScroll = document.getElementById('autoscroll-chk').checked;
+      
+      // Clean up escape sequences/color codes from python output
+      const cleanText = text.replace(/[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g, '');
+      
+      if (term.innerText === "Ready to execute tests. Waiting for log stream..." || term.innerText === "Testleri çalıştırmaya hazır. Log akışı bekleniyor...") {
+        term.innerText = '';
+      }
+      term.innerText += cleanText;
+      
+      if (shouldScroll) {
+        term.scrollTop = term.scrollHeight;
+      }
+    }
+
+    function clearConsole() {
+      document.getElementById('terminal-output').innerText = '';
+    }
+
+    function copyConsoleLogs() {
+      const logs = document.getElementById('terminal-output').innerText;
+      navigator.clipboard.writeText(logs);
+      showToast("Konsol logları panoya kopyalandı!");
+    }
+
+    function switchTab(tabName) {
+      // Toggle tab classes
+      document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+      
+      // Find element & activate
+      let index = 0;
+      if (tabName === 'logs') index = 1;
+      if (tabName === 'env') index = 2;
+      
+      document.querySelectorAll('.nav-item')[index].classList.add('active');
+      document.getElementById(`tab-${tabName}`).classList.add('active');
+    }
+
+    function setHeadless(headless) {
+      isHeadless = headless;
+      document.getElementById('headless-btn').classList.toggle('active', headless);
+      document.getElementById('headed-btn').classList.toggle('active', !headless);
+    }
+
+    function updateRunningState(running) {
+      const active = isSuiteRunning || running;
+      document.getElementById('run-all-btn').disabled = active;
+      document.getElementById('stop-btn').disabled = !active;
+      
+      document.querySelectorAll('.test-run-btn').forEach(btn => {
+        btn.disabled = active;
+      });
+
+      document.getElementById('suite-status-text').innerText = active ? 'Testler Çalıştırılıyor...' : 'Hazır';
+      if (active) {
+        document.getElementById('suite-status-text').style.color = 'var(--accent)';
+      } else {
+        document.getElementById('suite-status-text').style.color = 'var(--text-muted)';
+      }
+    }
+
+    async function loadTests() {
+      try {
+        const res = await fetch('/api/tests');
+        testsList = await res.json();
+        
+        // Initialize status map
+        testsList.forEach(t => {
+          if (!testStatuses[t.filename]) {
+            testStatuses[t.filename] = 'pending';
+          }
+        });
+        
+        document.getElementById('stat-total').innerText = testsList.length;
+        renderTestsList();
+      } catch (err) {
+        console.error('Failed to load tests list:', err);
+      }
+    }
+
+    function renderTestsList() {
+      const container = document.getElementById('tests-container');
+      container.innerHTML = '';
+      
+      testsList.forEach(t => {
+        const status = testStatuses[t.filename] || 'pending';
+        let badgeClass = 'badge-pending';
+        let statusText = 'Bekliyor';
+        if (status === 'running') { badgeClass = 'badge-running'; statusText = 'Çalışıyor'; }
+        if (status === 'passed') { badgeClass = 'badge-success'; statusText = 'Başarılı'; }
+        if (status === 'failed') { badgeClass = 'badge-danger'; statusText = 'Başarısız'; }
+        
+        const row = document.createElement('div');
+        row.className = 'test-item-row';
+        row.innerHTML = `
+          <div class="test-info">
+            <div class="test-name-row">
+              <span class="test-filename">${t.filename}</span>
+              <span class="badge ${badgeClass}">${statusText}</span>
+            </div>
+            <span class="test-desc">${t.description}</span>
+          </div>
+          <button class="btn btn-secondary test-run-btn" onclick="runTests('${t.filename}')" style="padding: 8px 16px; font-size: 13px;">
+            Testi Çalıştır
+          </button>
+        `;
+        container.appendChild(row);
+      });
+    }
+
+    async function runTests(testFile) {
+      if (testFile) {
+        clearConsole();
+        switchTab('logs');
+        testStatuses[testFile] = 'running';
+        renderTestsList();
+        
+        try {
+          const res = await fetch('/api/run', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ testFile, headed: !isHeadless })
+          });
+          const data = await res.json();
+          if (data.error) {
+            showToast(data.error, true);
+            testStatuses[testFile] = 'failed';
+            renderTestsList();
+          }
+        } catch (err) {
+          showToast("Test başlatılırken hata oluştu", true);
+          testStatuses[testFile] = 'failed';
+          renderTestsList();
+          console.error(err);
+        }
+      } else {
+        if (isSuiteRunning) return;
+        isSuiteRunning = true;
+        suiteErrors = [];
+        clearConsole();
+        switchTab('logs');
+        updateRunningState(true);
+        
+        appendTerminalText("==================================================\n");
+        appendTerminalText("SIRALI TEST AKIŞI BAŞLATILIYOR (Test 1 - 8)\n");
+        appendTerminalText("==================================================\n\n");
+        
+        // Reset all statuses to pending
+        testsList.forEach(t => {
+          testStatuses[t.filename] = 'pending';
+        });
+        renderTestsList();
+        
+        for (let i = 0; i < testsList.length; i++) {
+          if (!isSuiteRunning) break; // User stopped the run
+          
+          const t = testsList[i];
+          appendTerminalText(`[Akış] Test ${i+1}/${testsList.length} Çalıştırılıyor: ${t.name} (${t.filename})...\n`);
+          testStatuses[t.filename] = 'running';
+          renderTestsList();
+          
+          const success = await new Promise(async (resolve) => {
+            testResolveHandlers[t.filename] = resolve;
+            try {
+              const res = await fetch('/api/run', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ testFile: t.filename, headed: !isHeadless })
+              });
+              const data = await res.json();
+              if (data.error) {
+                appendTerminalText(`[Hata] Test başlatılamadı ${t.filename}: ${data.error}\n`);
+                resolve(false);
+              }
+            } catch (err) {
+              appendTerminalText(`[Hata] Bağlantı hatası ${t.filename}: ${err.message}\n`);
+              resolve(false);
+            }
+          });
+          
+          if (success) {
+            appendTerminalText(`[Sonuç] Test ${t.name} BAŞARIYLA GEÇTİ! ✅\n\n`);
+          } else {
+            appendTerminalText(`[Sonuç] Test ${t.name} BAŞARISIZ OLDU! ❌\n\n`);
+            suiteErrors.push({
+              name: t.name,
+              filename: t.filename,
+              error: "Yürütme sırasında test başarısız oldu. Yukarıdaki logları inceleyin."
+            });
+          }
+        }
+        
+        isSuiteRunning = false;
+        updateRunningState(false);
+        
+        appendTerminalText("==================================================\n");
+        appendTerminalText("TEST AKIŞI YÜRÜTME ÖZETİ\n");
+        appendTerminalText("==================================================\n");
+        const passedCount = testsList.filter(t => testStatuses[t.filename] === 'passed').length;
+        const failedCount = testsList.filter(t => testStatuses[t.filename] === 'failed').length;
+        appendTerminalText(`Çalıştırılan Toplam Test: ${testsList.length}\n`);
+        appendTerminalText(`Başarılı: ${passedCount}\n`);
+        appendTerminalText(`Başarısız: ${failedCount}\n\n`);
+        
+        if (suiteErrors.length > 0) {
+          appendTerminalText("DETAYLI HATA RAPORU:\n");
+          suiteErrors.forEach((err, idx) => {
+            appendTerminalText(`${idx + 1}. [${err.name}] (${err.filename}):\n   --> ${err.error}\n\n`);
+          });
+        } else {
+          appendTerminalText("TÜM TESTLER BAŞARIYLA GEÇTİ! 🎉\n\n");
+        }
+        
+        showToast(suiteErrors.length === 0 ? "Test akışı başarıyla tamamlandı!" : "Test akışı bazı hatalarla tamamlandı.", suiteErrors.length > 0);
+      }
+    }
+
+    async function stopTests() {
+      isSuiteRunning = false;
+      Object.keys(testResolveHandlers).forEach(key => {
+        if (testResolveHandlers[key]) {
+          testResolveHandlers[key](false);
+          delete testResolveHandlers[key];
+        }
+      });
+      
+      try {
+        const res = await fetch('/api/stop', { method: 'POST' });
+        const data = await res.json();
+        if (data.error) {
+          showToast(data.error, true);
+        } else {
+          showToast("Test çalışması iptal edildi.");
+          testsList.forEach(t => {
+            if (testStatuses[t.filename] === 'running') {
+              testStatuses[t.filename] = 'pending';
+            }
+          });
+          renderTestsList();
+        }
+      } catch (err) {
+        showToast("Test durdurulurken hata oluştu", true);
+      }
+      updateRunningState(false);
+    }
+
+    async function loadEnv() {
+      try {
+        const res = await fetch('/api/env');
+        const config = await res.json();
+        
+        const form = document.getElementById('config-form');
+        const footer = form.querySelector('.config-footer');
+        form.innerHTML = '';
+        
+        for (const [key, value] of Object.entries(config)) {
+          const group = document.createElement('div');
+          group.className = 'form-group';
+          group.innerHTML = `
+            <label>${key}</label>
+            <input type="text" name="${key}" value="${value}">
+          `;
+          form.appendChild(group);
+        }
+        
+        form.appendChild(footer);
+      } catch (err) {
+        console.error('Failed to load environment variables:', err);
+      }
+    }
+
+    async function saveEnv(e) {
+      e.preventDefault();
+      const formData = new FormData(e.target);
+      const data = {};
+      formData.forEach((value, key) => {
+        data[key] = value;
+      });
+      
+      try {
+        const res = await fetch('/api/env', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data)
+        });
+        const resp = await res.json();
+        if (resp.success) {
+          showToast("Yapılandırmalar başarıyla kaydedildi!");
+          if (data['DASHBOARD_BASE_URL']) {
+            const url = data['DASHBOARD_BASE_URL'];
+            document.getElementById('stat-target').innerText = url.includes('staging') ? 'Staging' : 'Dev';
+          }
+        } else {
+          showToast(resp.error || "Yapılandırma kaydedilemedi", true);
+        }
+      } catch (err) {
+        showToast("Yapılandırma sunucusuyla bağlantı kurulamadı", true);
+      }
+    }
+
+    function recalculateStats() {
+      let passed = 0;
+      let failed = 0;
+      let total = 0;
+      
+      for (const [file, status] of Object.entries(testStatuses)) {
+        total++;
+        if (status === 'passed') passed++;
+        if (status === 'failed') failed++;
+      }
+      
+      document.getElementById('stat-failed').innerText = failed;
+      const rate = total > 0 ? Math.round(((passed) / (passed + failed || 1)) * 100) : 0;
+      document.getElementById('stat-rate').innerText = `${rate}%`;
+    }
+
+    function showToast(text, isError = false) {
+      const toast = document.getElementById('toast');
+      const toastText = document.getElementById('toast-text');
+      
+      toast.style.background = isError ? 'var(--danger)' : 'var(--success)';
+      toast.style.boxShadow = isError ? '0 4px 16px rgba(239, 68, 68, 0.3)' : '0 4px 16px var(--success-glow)';
+      toastText.innerText = text;
+      
+      toast.classList.add('show');
+      setTimeout(() => {
+        toast.classList.remove('show');
+      }, 4000);
+    }
+
+    // Initial load
+    loadTests();
+    loadEnv();
+  </script>
+</body>
+</html>

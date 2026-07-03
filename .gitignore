@@ -1,0 +1,19 @@
+# Environments
+**/.env
+**/.env.*
+!.env.example
+
+# Credentials / Cookies
+**/session_cookies.json
+**/cookies.json
+**/*.json.lock
+
+# Python cache / logs
+**/__pycache__/
+**/*.py[cod]
+**/*$py.class
+**/.pytest_cache/
+**/archived_logs/
+
+# IDE
+.vscode/
