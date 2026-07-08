@@ -15,7 +15,9 @@ from tests.helpers import (
     get_switch_state,
     safe_click,
     click_exclude_confirm_if_any,
+    get_env_config,
 )
+from utils.waits import wait_for_page_ready
 from utils.gitsec_bug import fail_gitsec_bug
 
 logger = logging.getLogger("GitsecE2E")
@@ -68,6 +70,11 @@ def _try_exclude(sb, switch_sel, page_url):
     return False, confirm_clicked, bulk_tried
 
 
+@pytest.mark.known_gitsec_bug
+@pytest.mark.xfail(
+    strict=False,
+    reason="Bilinen GitSec staging bug — include/exclude persist etmiyor",
+)
 def test_github_repositories_include_all_then_exclude_all(sb):
     """
     GitSec staging'de repository include/exclude akışını doğrular.
@@ -81,7 +88,7 @@ def test_github_repositories_include_all_then_exclude_all(sb):
 
     perform_setup_and_login(sb)
     sb.open(github_repos_url)
-    time.sleep(4)
+    wait_for_page_ready(sb)
     dismiss_ui_blockers(sb)
     sb.assert_element("table", timeout=30)
     scroll_table_right(sb)

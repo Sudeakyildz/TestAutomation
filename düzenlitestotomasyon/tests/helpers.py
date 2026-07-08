@@ -4,6 +4,7 @@ import logging
 from selenium.webdriver.common.keys import Keys
 from pages.login_page import LoginPage
 from pages.dashboard_page import DashboardPage
+from utils.waits import wait_for_page_ready, wait_for_workspace_dashboard
 
 logger = logging.getLogger("GitsecE2E")
 
@@ -108,7 +109,7 @@ def wait_for_switch_state(sb, switch_sel, active, timeout=60, refresh_url=None):
     if refresh_url:
         logger.info("INFO: test step - Verifying switch state after page refresh...")
         sb.open(refresh_url)
-        time.sleep(3)
+        wait_for_page_ready(sb)
         scroll_table_right(sb)
         verify_deadline = time.time() + 25
         while time.time() < verify_deadline:
@@ -229,6 +230,7 @@ def get_env_config():
         "base_url": os.getenv("DASHBOARD_BASE_URL", "https://staging.dashboard.gitsec.io"),
         "workspace_id": os.getenv("WORKSPACE_ID", "83"),
         "api_base_url": os.getenv("API_BASE_URL", "https://staging.api.gitsec.io"),
+        "github_test_org": os.getenv("GITHUB_TEST_ORG", "1testhesap234-beep"),
     }
 
 
@@ -239,7 +241,7 @@ def navigate_to(sb, path_suffix, *, login=True):
         perform_setup_and_login(sb)
     url = f"{cfg['base_url']}/{cfg['workspace_id']}/{path_suffix.lstrip('/')}"
     sb.open(url)
-    time.sleep(3)
+    wait_for_page_ready(sb)
     dismiss_ui_blockers(sb)
     return url
 
@@ -319,7 +321,7 @@ def open_add_provider_page(sb):
         url = f"{cfg['base_url']}/{cfg['workspace_id']}/{path.lstrip('/')}"
         last_url = url
         sb.open(url)
-        time.sleep(3)
+        wait_for_page_ready(sb)
         dismiss_ui_blockers(sb)
         body = sb.get_text("body").lower()
         if "404" in body or "not found" in body:
@@ -356,7 +358,7 @@ def perform_setup_and_login(sb):
         if loaded:
             logger.info("INFO: test step - Reusing existing session cookies to bypass login")
             sb.open(dashboard_url)
-            time.sleep(3)
+            wait_for_page_ready(sb)
             if _session_needs_refresh(sb, base_url, workspace_id):
                 logger.info("INFO: test step - Session expired or invalid. Re-authenticating...")
                 loaded = login_page.api_login(base_url, email, password)
@@ -386,16 +388,14 @@ def perform_setup_and_login(sb):
         logger.info("INFO: test step - Dashboard still invalid after login; retrying API login once")
         if login_page.api_login(base_url, email, password):
             sb.open(dashboard_url)
-            time.sleep(2)
+            wait_for_page_ready(sb)
 
     try:
-        sb.wait_for_condition(lambda: f"/{workspace_id}/" in sb.get_current_url(), timeout=20)
-        sb.assert_element("main", timeout=20)
+        wait_for_workspace_dashboard(sb, workspace_id, timeout=25)
     except Exception as e:
         logger.error(f"ERROR: Dashboard loading check failed: {str(e)}")
         sb.open(dashboard_url)
-        time.sleep(3)
-        sb.assert_element("main", timeout=20)
+        wait_for_workspace_dashboard(sb, workspace_id, timeout=25)
 
     login_page.bypass_onboarding()
     login_page.close_popups_if_any()
@@ -429,6 +429,6 @@ def check_license_limit_or_error(sb):
             if kw in body_text:
                 logger.info(f"🚨 HATA/UYARI DETAYI: {kw.upper()} tespit edildi!")
                 return True
-    except:
+    except Exception:
         pass
     return False

@@ -10,6 +10,7 @@ import pytest
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from utils.api_client import GitsecApiClient
+from utils.api_contract import assert_data_has_list, assert_optional_success
 
 
 class TestWorkspaceMembershipApi:
@@ -17,11 +18,12 @@ class TestWorkspaceMembershipApi:
         status, payload = api_client.get(f"/api/workspace-memberships/workspaces/{workspace_id}/users")
         assert status in (200, 404), f"Unexpected status: {status}"
         if status == 200:
-            assert "list" in payload.get("data", payload)
+            assert_data_has_list(payload, f"/users/{workspace_id}")
 
     def test_workspace_memberships_list(self, api_client):
         status, payload = api_client.get("/api/workspace-memberships")
         assert status in (200, 400, 405), f"Unexpected status: {status}"
+        assert_optional_success(status, payload, "/api/workspace-memberships")
 
 
 class TestUserInviteApi:

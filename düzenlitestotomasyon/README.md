@@ -35,7 +35,14 @@ Panel: http://localhost:3050
 | `regression` | Tam regresyon | ~1–2 saat |
 | `write` | Gerçek POST/PUT/DELETE + cleanup | ~1 dk |
 | `exploratory` | Gevşek API keşif testleri | Değişken |
-| `unit` | Helper unit testleri | <10 sn |
+| `unit` | Helper + auth + contract unit testleri (23 test) | <10 sn |
+
+### Kalite altyapisi
+
+- `utils/waits.py` — explicit wait
+- `utils/auth.py` — tek sign-in kaynagi
+- CI regression: `--reruns 2 --reruns-delay 5`
+- `GITHUB_TEST_ORG` — GitHub org secimi (test_7)
 
 ### CLI
 
@@ -53,10 +60,10 @@ Her staging koşusundan önce: env + API sign-in + workspace erişimi.
 
 Atlamak için: `--skip-preflight` veya `GITSEC_SKIP_PREFLIGHT=1`
 
-## Bilinen GitSec bug'ları
+## Bilinen GitSec bug'lari
 
-- `test_5` Include/Exclude — xfail
-- `test_7` Restore overlay — xfail
+- `test_5` Include/Exclude — test bazli xfail (modul degil)
+- `test_7` Restore overlay — test bazli xfail (modul degil)
 
 ## Panel v2.5
 

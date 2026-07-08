@@ -28,6 +28,10 @@ FUNCTIONAL_API_MODULES = {
 
 UNIT_MODULES = {
     "test_api_helpers_unit.py",
+    "test_helpers_unit.py",
+    "test_api_client_unit.py",
+    "test_auth_unit.py",
+    "test_api_contract_unit.py",
 }
 
 KNOWN_GITSEC_BUG_MODULES = {
@@ -262,12 +266,6 @@ def pytest_collection_modifyitems(config, items):
 
         if module_name in KNOWN_GITSEC_BUG_MODULES:
             item.add_marker(pytest.mark.known_gitsec_bug)
-            item.add_marker(
-                pytest.mark.xfail(
-                    strict=False,
-                    reason="Bilinen GitSec staging bug — overlay/modal veya license akışı",
-                )
-            )
 
         if module_name in GITHUB_MODULES:
             item.add_marker(pytest.mark.requires_github)

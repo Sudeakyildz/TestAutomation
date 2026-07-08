@@ -123,47 +123,33 @@ class LoginPage(BasePage):
         return False
 
     def api_login(self, base_url, email, password):
+        from utils.auth import sign_in_for_token
+        from utils.waits import wait_for_workspace_dashboard
+
         api_base_url = os.getenv("API_BASE_URL", "https://staging.api.gitsec.io")
         logger.info(f"INFO: test step - Performing API login to bypass CAPTCHA. API URL: {api_base_url}")
+        workspace_id = os.getenv("WORKSPACE_ID", "83")
         for attempt in range(3):
             try:
-                import urllib.request
-                import urllib.error
-                import json
-                
-                url = f"{api_base_url}/auth/signin"
-                data = json.dumps({"email": email, "password": password}).encode("utf-8")
-                req = urllib.request.Request(
-                    url, 
-                    data=data, 
-                    headers={"Content-Type": "application/json"}
-                )
-                
-                with urllib.request.urlopen(req, timeout=15) as response:
-                    resp_data = json.loads(response.read().decode("utf-8"))
-                    token = resp_data.get("data", {}).get("token")
-                    if token:
-                        logger.info("INFO: test step - API login successful! Token retrieved.")
-                        self.sb.open(base_url)
-                        self.sb.delete_all_cookies()
-                        cookie = {
-                            "name": "gs_token",
-                            "value": token,
-                            "domain": ".gitsec.io",
-                            "path": "/",
-                            "secure": True,
-                            "sameSite": "Lax"
-                        }
-                        self.sb.add_cookie(cookie)
-                        logger.info("INFO: test step - API token cookie injected into browser session.")
-                        self.bypass_onboarding()
-                        
-                        workspace_id = os.getenv("WORKSPACE_ID", "83")
-                        self.sb.open(f"{base_url}/{workspace_id}/dashboard")
-                        self.save_session_cookies()
-                        return True
-                    else:
-                        logger.error("ERROR: API login response did not contain token")
+                token = sign_in_for_token(email, password, api_base_url=api_base_url)
+                logger.info("INFO: test step - API login successful! Token retrieved.")
+                self.sb.open(base_url)
+                self.sb.delete_all_cookies()
+                cookie = {
+                    "name": "gs_token",
+                    "value": token,
+                    "domain": ".gitsec.io",
+                    "path": "/",
+                    "secure": True,
+                    "sameSite": "Lax",
+                }
+                self.sb.add_cookie(cookie)
+                logger.info("INFO: test step - API token cookie injected into browser session.")
+                self.bypass_onboarding()
+                self.sb.open(f"{base_url}/{workspace_id}/dashboard")
+                wait_for_workspace_dashboard(self.sb, workspace_id, timeout=25)
+                self.save_session_cookies()
+                return True
             except Exception as e:
                 backoff = 2 ** attempt
                 logger.error(f"ERROR: API login request failed on attempt {attempt + 1}/3: {str(e)}")

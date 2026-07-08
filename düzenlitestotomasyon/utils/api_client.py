@@ -53,21 +53,10 @@ class GitsecApiClient:
             return status, raw
 
     def sign_in(self, email: str, password: str) -> str:
-        status, payload = self._request(
-            "POST",
-            "/Auth/SignIn",
-            {"email": email, "password": password},
-            auth=False,
-        )
-        if status != 200:
-            raise AssertionError(f"SignIn failed with HTTP {status}: {payload}")
+        from utils.auth import sign_in_for_token
 
-        assert isinstance(payload, dict), f"Unexpected SignIn response type: {type(payload)}"
-        assert payload.get("success") is True, f"SignIn success=false: {payload}"
-        token = payload.get("data", {}).get("token")
-        assert token, f"SignIn response missing token: {payload}"
-        self.token = token
-        return token
+        self.token = sign_in_for_token(email, password, api_base_url=self.base_url)
+        return self.token
 
     def get(self, path: str, *, auth: bool = True) -> tuple[int, Any]:
         return self._request("GET", path, auth=auth)

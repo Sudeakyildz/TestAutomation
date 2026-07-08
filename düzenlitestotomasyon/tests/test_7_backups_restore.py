@@ -9,7 +9,8 @@ from selenium.webdriver.common.by import By
 # Adjust path to ensure POM imports work regardless of execution directory
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from tests.helpers import perform_setup_and_login, dismiss_ui_blockers, safe_click, click_restore_submit, wait_for_restore_submitted
+from tests.helpers import perform_setup_and_login, dismiss_ui_blockers, safe_click, click_restore_submit, wait_for_restore_submitted, get_env_config
+from utils.waits import wait_for_page_ready, wait_for_element_stable
 from pages.github_login_page import GithubLoginPage
 
 logger = logging.getLogger("GitsecE2E")
@@ -28,19 +29,29 @@ def clean_github_session(sb):
 
 def select_organization_if_needed(sb):
     """Selects the target organization if the dropdown is not populated."""
-    org_select_btn = "button:contains('Select target organization'), button:contains('1testhesap234-beep')"
+    org = get_env_config()["github_test_org"]
+    org_select_btn = f"button:contains('Select target organization'), button:contains('{org}')"
     if sb.is_element_visible(org_select_btn):
         logger.info("INFO: test step - Dropdown visible. Clicking it to choose organization...")
         sb.click(org_select_btn)
-        time.sleep(1.5)
-        option_sel = "[role='option']:contains('1testhesap234-beep'), [data-slot='select-item']:contains('1testhesap234-beep'), [role='menuitem']:contains('1testhesap234-beep')"
+        wait_for_element_stable(sb, "[role='option'], [data-slot='select-item'], [role='menuitem']", timeout=5)
+        option_sel = (
+            f"[role='option']:contains('{org}'), "
+            f"[data-slot='select-item']:contains('{org}'), "
+            f"[role='menuitem']:contains('{org}')"
+        )
         if not sb.is_element_visible(option_sel):
             sb.click(org_select_btn)
-            time.sleep(1.5)
+            wait_for_element_stable(sb, option_sel, timeout=5)
         sb.wait_for_element_visible(option_sel, timeout=10)
         sb.click(option_sel)
-        time.sleep(1.5)
+        wait_for_element_stable(sb, "main", timeout=10)
 
+@pytest.mark.known_gitsec_bug
+@pytest.mark.xfail(
+    strict=False,
+    reason="Bilinen GitSec staging bug — restore overlay/modal",
+)
 def test_backups_restore(sb):
     """
     E2E Test to verify the backups restore flow with three visibilities:

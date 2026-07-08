@@ -5,6 +5,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException, WebDriverException
 from pages.login_page import BasePage
+from utils.waits import wait_for_dialog_closed
 
 logger = logging.getLogger("GitsecE2E")
 
@@ -108,7 +109,7 @@ class DashboardPage(BasePage):
             try:
                 if self.sb.is_element_visible(sel):
                     self.safeClick(locator, timeout=10)
-                    time.sleep(2)
+                    wait_for_dialog_closed(self.sb, "rect[mask*='tour-spotlight-mask']", timeout=3)
                     return True
             except Exception:
                 continue
@@ -150,7 +151,7 @@ class DashboardPage(BasePage):
             logger.warning("WARNING: Language switcher button not found. Skipping language switch to TR.")
             return False
         self.dismiss_open_menus()
-        time.sleep(2)
+        wait_for_dialog_closed(self.sb, timeout=5)
         return True
 
     def change_language_to_en(self):
@@ -177,7 +178,7 @@ class DashboardPage(BasePage):
             logger.warning("WARNING: Language switcher button not found. Skipping language switch to EN.")
             return False
         self.dismiss_open_menus()
-        time.sleep(2)
+        wait_for_dialog_closed(self.sb, timeout=5)
         return True
 
     def find_theme_button(self):
