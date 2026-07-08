@@ -1,0 +1,14 @@
+{
+  "name": "gitsec-test-panel",
+  "version": "2.5.0",
+  "private": true,
+  "description": "GitSec test otomasyon paneli",
+  "scripts": {
+    "start": "node server.js",
+    "preflight": "python scripts/preflight.py",
+    "test:smoke": "python -m pytest tests/ -m smoke --headless -v",
+    "test:regression": "python -m pytest tests/ -m \"regression and not write and not exploratory\" --headless -v",
+    "test:write": "python -m pytest tests/ -m write -v",
+    "test:unit": "python -m pytest tests/test_api_helpers_unit.py -v --skip-preflight"
+  }
+}

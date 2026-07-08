@@ -8,7 +8,7 @@ from selenium.webdriver.common.by import By
 from pages.login_page import LoginPage
 from pages.dashboard_page import DashboardPage
 from pages.github_login_page import GithubLoginPage
-from tests.helpers import perform_setup_and_login
+from tests.helpers import perform_setup_and_login, get_env_config
 
 logger = logging.getLogger("GitsecE2E")
 
@@ -18,10 +18,11 @@ def test_github_repositories_connection(sb):
     """
     logger.info("INFO: test step - Starting GitHub Repositories Connection Test")
     
+    cfg = get_env_config()
     github_user = os.getenv("GITHUB_TEST_USER")
     github_pass = os.getenv("GITHUB_TEST_PASSWORD")
-    base_url = os.getenv("DASHBOARD_BASE_URL", "https://dev.dashboard.gitsec.io")
-    workspace_id = os.getenv("WORKSPACE_ID", "754")
+    base_url = cfg["base_url"]
+    workspace_id = cfg["workspace_id"]
     
     if not github_user or not github_pass:
         pytest.skip("GITHUB_TEST_USER or GITHUB_TEST_PASSWORD is not set in .env. Skipping test.")

@@ -10,7 +10,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from pages.login_page import LoginPage
 from pages.dashboard_page import DashboardPage
-from tests.helpers import perform_setup_and_login
+from tests.helpers import perform_setup_and_login, assert_main_visible
 
 logger = logging.getLogger("GitsecE2E")
 
@@ -40,7 +40,7 @@ def test_dashboard_ui_controls(sb):
             
         login_page = LoginPage(sb)
         login_page.close_popups_if_any()
-        assert True, "Help clicked and dismissed successfully"
+        assert_main_visible(sb)
     except Exception as e:
         logger.error(f"ERROR: Help button interaction failed: {str(e)}")
         raise e
@@ -88,9 +88,12 @@ def test_dashboard_ui_controls(sb):
         dashboard_page.click_search_side_button()
         logger.info("INFO: test step - Search side button clicked once to open search dialog")
         time.sleep(1)
+        search_open = sb.is_element_visible(
+            "[data-slot='dialog-content'], input[placeholder*='Search'], [cmdk-input]"
+        )
         dashboard_page.dismiss_open_menus()
         logger.info("INFO: test step - Search dialog dismissed via Escape key")
-        assert True, "Search side button opened and closed successfully"
+        assert search_open or sb.is_element_visible("main"), "Search control did not open and dashboard not visible"
     except Exception as e:
         logger.error(f"ERROR: Search side button failed: {str(e)}")
         raise e
@@ -101,7 +104,7 @@ def test_dashboard_ui_controls(sb):
         logger.info("INFO: test step - Sidebar collapsed")
         dashboard_page.click_sidebar_toggle()
         logger.info("INFO: test step - Sidebar expanded back")
-        assert True, "Sidebar toggle completed successfully"
+        assert sb.is_element_visible("button[aria-label='Toggle Sidebar']"), "Sidebar toggle button missing after toggle"
     except Exception as e:
         logger.error(f"ERROR: Sidebar toggle failed: {str(e)}")
         raise e

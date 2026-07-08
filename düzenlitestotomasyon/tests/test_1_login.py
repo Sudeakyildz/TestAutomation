@@ -8,7 +8,7 @@ import pytest
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from pages.login_page import LoginPage
-from tests.helpers import perform_setup_and_login
+from tests.helpers import perform_setup_and_login, get_env_config
 
 logger = logging.getLogger("GitsecE2E")
 
@@ -24,11 +24,12 @@ def test_login_flow(sb):
     """
     logger.info("INFO: test step - Starting Login Test Flow")
     
-    email = os.getenv("E2E_USER_EMAIL")
-    password = os.getenv("E2E_USER_PASSWORD")
-    base_url = os.getenv("DASHBOARD_BASE_URL", "https://dev.dashboard.gitsec.io")
-    workspace_id = os.getenv("WORKSPACE_ID", "754")
-    
+    cfg = get_env_config()
+    email = cfg["email"]
+    password = cfg["password"]
+    base_url = cfg["base_url"]
+    workspace_id = cfg["workspace_id"]
+
     assert email, "E2E_USER_EMAIL environment variable is not defined"
     assert password, "E2E_USER_PASSWORD environment variable is not defined"
     

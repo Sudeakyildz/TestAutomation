@@ -14,6 +14,7 @@
 **/*$py.class
 **/.pytest_cache/
 **/archived_logs/
+**/reports/
 
 # IDE
 .vscode/

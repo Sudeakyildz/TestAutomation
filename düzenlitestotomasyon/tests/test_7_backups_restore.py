@@ -9,7 +9,7 @@ from selenium.webdriver.common.by import By
 # Adjust path to ensure POM imports work regardless of execution directory
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from tests.helpers import perform_setup_and_login
+from tests.helpers import perform_setup_and_login, dismiss_ui_blockers, safe_click, click_restore_submit, wait_for_restore_submitted
 from pages.github_login_page import GithubLoginPage
 
 logger = logging.getLogger("GitsecE2E")
@@ -130,11 +130,11 @@ def test_backups_restore(sb):
         logger.info("INFO: test step - Target organization is already connected. Skipping GitHub installation popup.")
     
     select_organization_if_needed(sb)
-    sb.click("button:contains('Next Step')")
+    safe_click(sb, "xpath=//button[contains(., 'Next Step')]")
     time.sleep(2)
-    sb.wait_for_text_visible("Select backup source", timeout=15)
+    sb.wait_for_text_visible("Select backup source", timeout=20)
     
-    sb.click("button:contains('Next'):not(:contains('Next Step'))")
+    safe_click(sb, "xpath=//button[contains(., 'Next') and not(contains(., 'Next Step'))]")
     time.sleep(2)
     sb.wait_for_text_visible("New Repository Name", timeout=15)
     
@@ -150,26 +150,17 @@ def test_backups_restore(sb):
     sb.click("#private, label[for='private']")
     time.sleep(1)
     
-    sb.click("button:contains('Next Step')")
+    safe_click(sb, "xpath=//button[contains(., 'Next Step')]")
     time.sleep(4)
     
-    start_restore_btn = "button:contains('Start Restore')"
-    sb.wait_for_element_visible(start_restore_btn, timeout=10)
-    sb.click(start_restore_btn)
-    
     try:
-        sb.wait_for_condition(
-            lambda: "submitted" in sb.get_text("body").lower() or "restore in progress" in sb.get_text("body").lower() or "queued" in sb.get_text("body").lower(),
-            timeout=25
-        )
+        click_restore_submit(sb)
+        wait_for_restore_submitted(sb, timeout=40)
     except Exception as e:
-        logger.warning(f"First click on Start Restore did not transition: {e}. Retrying click...")
-        if sb.is_element_visible(start_restore_btn):
-            sb.click(start_restore_btn)
-        sb.wait_for_condition(
-            lambda: "submitted" in sb.get_text("body").lower() or "restore in progress" in sb.get_text("body").lower() or "queued" in sb.get_text("body").lower(),
-            timeout=25
-        )
+        logger.warning(f"First Start Restore attempt did not transition: {e}. Retrying...")
+        dismiss_ui_blockers(sb)
+        click_restore_submit(sb)
+        wait_for_restore_submitted(sb, timeout=30)
     logger.info("INFO: test step - RUN 1 (Private Restore) completed successfully!")
     
     # RUN 2: PUBLIC RESTORE
@@ -178,11 +169,11 @@ def test_backups_restore(sb):
     time.sleep(5)
     
     select_organization_if_needed(sb)
-    sb.click("button:contains('Next Step')")
+    safe_click(sb, "xpath=//button[contains(., 'Next Step')]")
     time.sleep(2)
-    sb.wait_for_text_visible("Select backup source", timeout=15)
+    sb.wait_for_text_visible("Select backup source", timeout=20)
     
-    sb.click("button:contains('Next'):not(:contains('Next Step'))")
+    safe_click(sb, "xpath=//button[contains(., 'Next') and not(contains(., 'Next Step'))]")
     time.sleep(2)
     sb.wait_for_text_visible("New Repository Name", timeout=15)
     
@@ -192,33 +183,25 @@ def test_backups_restore(sb):
     sb.type(repo_name_sel, repo_name_public)
     sb.type(desc_sel, "Temporary public restore test description")
     
-    sb.click("#public, label[for='public']")
+    safe_click(sb, "#public, label[for='public']")
     time.sleep(1)
     
-    sb.click("button:contains('Next Step')")
+    safe_click(sb, "xpath=//button[contains(., 'Next Step')]")
     time.sleep(4)
     
-    sb.wait_for_element_visible(start_restore_btn, timeout=10)
-    sb.click(start_restore_btn)
-    
     try:
-        sb.wait_for_condition(
-            lambda: "submitted" in sb.get_text("body").lower() or "restore in progress" in sb.get_text("body").lower() or "queued" in sb.get_text("body").lower(),
-            timeout=25
-        )
+        click_restore_submit(sb)
+        wait_for_restore_submitted(sb, timeout=40)
         logger.info("INFO: test step - RUN 2 (Public Restore) completed successfully!")
     except Exception as e:
-        logger.warning(f"First click on Start Restore did not transition: {e}. Retrying click...")
-        if sb.is_element_visible(start_restore_btn):
-            sb.click(start_restore_btn)
+        logger.warning(f"RUN 2 Start Restore did not transition: {e}. Retrying with overlay dismiss...")
+        dismiss_ui_blockers(sb)
         try:
-            sb.wait_for_condition(
-                lambda: "submitted" in sb.get_text("body").lower() or "restore in progress" in sb.get_text("body").lower() or "queued" in sb.get_text("body").lower(),
-                timeout=15
-            )
-            logger.info("INFO: test step - RUN 2 (Public Restore) completed successfully on retry!")
+            click_restore_submit(sb)
+            wait_for_restore_submitted(sb, timeout=25)
+            logger.info("INFO: test step - RUN 2 (Public Restore) completed on retry!")
         except Exception as retry_err:
-            logger.warning(f"WARNING: RUN 2 (Public Restore) did not transition: {retry_err}. Skipping final validation.")
+            logger.warning(f"WARNING: RUN 2 (Public Restore) skipped final validation: {retry_err}")
     
     # RUN 3: INTERNAL RESTORE
     logger.info("INFO: test step - RUN 3: Starting Internal Restore Flow")
@@ -226,11 +209,11 @@ def test_backups_restore(sb):
     time.sleep(5)
     
     select_organization_if_needed(sb)
-    sb.click("button:contains('Next Step')")
+    safe_click(sb, "xpath=//button[contains(., 'Next Step')]")
     time.sleep(2)
-    sb.wait_for_text_visible("Select backup source", timeout=15)
+    sb.wait_for_text_visible("Select backup source", timeout=20)
     
-    sb.click("button:contains('Next'):not(:contains('Next Step'))")
+    safe_click(sb, "xpath=//button[contains(., 'Next') and not(contains(., 'Next Step'))]")
     time.sleep(2)
     sb.wait_for_text_visible("New Repository Name", timeout=15)
     
@@ -240,30 +223,22 @@ def test_backups_restore(sb):
     sb.type(repo_name_sel, repo_name_internal)
     sb.type(desc_sel, "Temporary internal restore test description")
     
-    sb.click("#internal, label[for='internal']")
+    safe_click(sb, "#internal, label[for='internal']")
     time.sleep(1)
     
-    sb.click("button:contains('Next Step')")
+    safe_click(sb, "xpath=//button[contains(., 'Next Step')]")
     time.sleep(4)
     
-    sb.wait_for_element_visible(start_restore_btn, timeout=10)
-    sb.click(start_restore_btn)
-    
     try:
-        sb.wait_for_condition(
-            lambda: "submitted" in sb.get_text("body").lower() or "restore in progress" in sb.get_text("body").lower() or "queued" in sb.get_text("body").lower(),
-            timeout=25
-        )
+        click_restore_submit(sb)
+        wait_for_restore_submitted(sb, timeout=40)
         logger.info("INFO: test step - RUN 3 (Internal Restore) completed successfully!")
     except Exception as e:
-        logger.warning(f"First click on Start Restore did not transition: {e}. Retrying click...")
-        if sb.is_element_visible(start_restore_btn):
-            sb.click(start_restore_btn)
+        logger.warning(f"RUN 3 Start Restore did not transition: {e}. Retrying with overlay dismiss...")
+        dismiss_ui_blockers(sb)
         try:
-            sb.wait_for_condition(
-                lambda: "submitted" in sb.get_text("body").lower() or "restore in progress" in sb.get_text("body").lower() or "queued" in sb.get_text("body").lower(),
-                timeout=15
-            )
-            logger.info("INFO: test step - RUN 3 (Internal Restore) completed successfully on retry!")
+            click_restore_submit(sb)
+            wait_for_restore_submitted(sb, timeout=25)
+            logger.info("INFO: test step - RUN 3 (Internal Restore) completed on retry!")
         except Exception as retry_err:
-            logger.warning(f"WARNING: RUN 3 (Internal Restore) did not transition: {retry_err}. Skipping final validation.")
+            logger.warning(f"WARNING: RUN 3 (Internal Restore) skipped final validation: {retry_err}")

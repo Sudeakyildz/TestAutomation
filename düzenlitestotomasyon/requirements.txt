@@ -1,0 +1,7 @@
+pytest>=8.0
+pytest-html>=4.0
+pytest-ordering>=0.6
+pytest-rerunfailures>=14.0
+seleniumbase>=4.25
+python-dotenv>=1.0
+selenium>=4.15

@@ -1,0 +1,99 @@
+name: GitSec E2E Staging
+
+on:
+  pull_request:
+    paths:
+      - 'düzenlitestotomasyon/**'
+      - '.github/workflows/gitsec-e2e.yml'
+  push:
+    branches: [main, master]
+    paths:
+      - 'düzenlitestotomasyon/**'
+  workflow_dispatch:
+    inputs:
+      suite:
+        description: 'Test paketi'
+        required: true
+        default: smoke
+        type: choice
+        options:
+          - smoke
+          - regression
+          - write
+          - unit
+
+defaults:
+  run:
+    working-directory: düzenlitestotomasyon
+
+jobs:
+  test:
+    runs-on: windows-latest
+    timeout-minutes: 120
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Resolve marker expression
+        id: markers
+        shell: bash
+        run: |
+          INPUT="${{ github.event.inputs.suite }}"
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "expr=smoke" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            case "$INPUT" in
+              smoke) echo "expr=smoke" >> "$GITHUB_OUTPUT" ;;
+              write) echo "expr=write" >> "$GITHUB_OUTPUT" ;;
+              unit) echo "expr=unit" >> "$GITHUB_OUTPUT" ;;
+              *) echo "expr=regression and not write and not exploratory" >> "$GITHUB_OUTPUT" ;;
+            esac
+          else
+            echo "expr=regression and not write and not exploratory" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Preflight
+        if: steps.markers.outputs.expr != 'unit'
+        env:
+          E2E_USER_EMAIL: ${{ secrets.E2E_USER_EMAIL }}
+          E2E_USER_PASSWORD: ${{ secrets.E2E_USER_PASSWORD }}
+          WORKSPACE_ID: ${{ secrets.WORKSPACE_ID }}
+          DASHBOARD_BASE_URL: ${{ secrets.DASHBOARD_BASE_URL || 'https://staging.dashboard.gitsec.io' }}
+          API_BASE_URL: ${{ secrets.API_BASE_URL || 'https://staging.api.gitsec.io' }}
+          GITHUB_TEST_USER: ${{ secrets.E2E_GITHUB_TEST_USER }}
+          GITHUB_TEST_PASSWORD: ${{ secrets.E2E_GITHUB_TEST_PASSWORD }}
+        run: python scripts/preflight.py
+
+      - name: Run tests
+        env:
+          E2E_USER_EMAIL: ${{ secrets.E2E_USER_EMAIL }}
+          E2E_USER_PASSWORD: ${{ secrets.E2E_USER_PASSWORD }}
+          WORKSPACE_ID: ${{ secrets.WORKSPACE_ID }}
+          DASHBOARD_BASE_URL: ${{ secrets.DASHBOARD_BASE_URL || 'https://staging.dashboard.gitsec.io' }}
+          API_BASE_URL: ${{ secrets.API_BASE_URL || 'https://staging.api.gitsec.io' }}
+          GITHUB_TEST_USER: ${{ secrets.E2E_GITHUB_TEST_USER }}
+          GITHUB_TEST_PASSWORD: ${{ secrets.E2E_GITHUB_TEST_PASSWORD }}
+          E2E_INVITE_ROLE_ID: ${{ secrets.E2E_INVITE_ROLE_ID || '4' }}
+          GITSEC_HTML_REPORT: '1'
+        run: >
+          python -m pytest tests/
+          -m "${{ steps.markers.outputs.expr }}"
+          --headless -v --tb=short
+          --junitxml=reports/junit_ci.xml
+          ${{ steps.markers.outputs.expr == 'unit' && '--skip-preflight' || '' }}
+
+      - name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gitsec-test-reports
+          path: |
+            düzenlitestotomasyon/reports/
+            düzenlitestotomasyon/latest_logs/

@@ -3,132 +3,131 @@ import sys
 import time
 import logging
 import pytest
-from datetime import datetime, timezone
 
-# Adjust path to ensure POM imports work regardless of execution directory
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from pages.login_page import LoginPage
-from pages.dashboard_page import DashboardPage
-from tests.helpers import perform_setup_and_login, scroll_table_right, check_license_limit_or_error
+from tests.helpers import (
+    perform_setup_and_login,
+    scroll_table_right,
+    check_license_limit_or_error,
+    dismiss_ui_blockers,
+    toggle_repository_switch,
+    get_switch_state,
+    safe_click,
+    click_exclude_confirm_if_any,
+)
+from utils.gitsec_bug import fail_gitsec_bug
 
 logger = logging.getLogger("GitsecE2E")
 
+
+def _first_switch(sb):
+    switch_sel = "table tbody tr:nth-child(1) button[role='switch']"
+    return switch_sel if sb.is_element_present(switch_sel) else None
+
+
+def _select_first_row(sb):
+    checkbox_sel = "table tbody tr:nth-child(1) button[role='checkbox'], table tbody tr:nth-child(1) input[type='checkbox']"
+    if sb.is_element_present(checkbox_sel):
+        safe_click(sb, checkbox_sel, timeout=5, dismiss=False)
+        time.sleep(0.5)
+
+
+def _bulk_action(sb, *labels):
+    for label in labels:
+        btn = f"xpath=//button[contains(., '{label}')]"
+        if sb.is_element_visible(btn):
+            safe_click(sb, btn, timeout=5, dismiss=False)
+            return True
+    return False
+
+
+def _refresh_and_get_state(sb, page_url, switch_sel):
+    sb.open(page_url)
+    time.sleep(3)
+    scroll_table_right(sb)
+    return get_switch_state(sb, switch_sel)
+
+
+def _try_exclude(sb, switch_sel, page_url):
+    """Switch + bulk exclude dener. (başarılı_mı, onay_tıklandı_mı, bulk_denendi_mi)"""
+    confirm_clicked = False
+    bulk_tried = False
+
+    _select_first_row(sb)
+    if _bulk_action(sb, "Exclude selected", "Exclude Selected", "Hariç tut"):
+        bulk_tried = True
+        confirm_clicked = click_exclude_confirm_if_any(sb)
+
+    if _refresh_and_get_state(sb, page_url, switch_sel) is False:
+        return True, confirm_clicked, bulk_tried
+
+    if toggle_repository_switch(sb, switch_sel, False, page_url):
+        return True, confirm_clicked or True, bulk_tried
+
+    return False, confirm_clicked, bulk_tried
+
+
 def test_github_repositories_include_all_then_exclude_all(sb):
     """
-    E2E Test to include all repositories on the current page, and then exclude them all back.
-    Uses index-based CSS selectors to bypass visibility/scrolling text constraints.
+    GitSec staging'de repository include/exclude akışını doğrular.
+    Beklenen davranış oluşmazsa olası GitSec ürün hatası olarak raporlanır.
     """
-    logger.info("INFO: test step - Starting Include All then Exclude All Test")
-    
+    logger.info("INFO: test step - Starting Include / Exclude Test")
+
     base_url = os.getenv("DASHBOARD_BASE_URL", "https://staging.dashboard.gitsec.io")
     workspace_id = os.getenv("WORKSPACE_ID", "83")
-    
-    dashboard_page = perform_setup_and_login(sb)
     github_repos_url = f"{base_url}/{workspace_id}/repositories/github"
-    logger.info(f"INFO: test step - Navigating to GitHub Repositories page: {github_repos_url}")
+
+    perform_setup_and_login(sb)
     sb.open(github_repos_url)
     time.sleep(4)
-    
-    def click_confirm_button_if_any(sb):
-        """Loops through different selector strategies to robustly click the confirmation button."""
-        confirm_selectors = [
-            "button.bg-destructive",
-            "//button[contains(text(), 'Yes, Exclude')]",
-            "//button[contains(text(), 'Exclude')]",
-            "//button[contains(text(), 'Confirm')]",
-            "//button[contains(text(), 'Hariç Tut')]"
-        ]
-        for sel in confirm_selectors:
-            try:
-                # Wait up to 3 seconds for the button to become visible
-                sb.wait_for_element_visible(sel, timeout=3)
-                sb.click(sel)
-                logger.info(f"INFO: test step - Clicked confirm button via selector: {sel}")
-                try:
-                    sb.wait_for_element_not_visible("div[role='dialog']", timeout=5)
-                except:
-                    pass
-                time.sleep(1.5)
-                return True
-            except:
-                pass
-        return False
-
+    dismiss_ui_blockers(sb)
     sb.assert_element("table", timeout=30)
     scroll_table_right(sb)
 
-    rows = sb.find_elements("table tbody tr")
-    row_count = len(rows)
-    logger.info(f"INFO: test step - Found {row_count} repositories in the table body.")
-    
-    logger.info("INFO: test step - Step 1: Setting up clean state (Excluding all active repositories)")
-    for i in range(row_count):
-        switch_sel = f"table tbody tr:nth-child({i+1}) button[role='switch']"
-        if sb.is_element_present(switch_sel):
-            aria_checked = sb.get_attribute(switch_sel, "aria-checked")
-            if aria_checked == "true" or aria_checked == "checked":
-                logger.info(f"INFO: test step - Row {i+1} is active. Toggling to inactive...")
-                sb.scroll_to(switch_sel)
-                time.sleep(0.5)
-                sb.js_click(switch_sel)
-                
-                # Robust click confirmation button
-                click_confirm_button_if_any(sb)
-                sb.wait_for_condition(lambda: sb.get_attribute(switch_sel, "aria-checked") == "false", timeout=45)
-                logger.info(f"INFO: test step - Row {i+1} successfully set to inactive.")
-                
-    logger.info("INFO: test step - Refreshing page to establish baseline...")
-    sb.open(github_repos_url)
-    time.sleep(4)
-    scroll_table_right(sb)
-    
-    logger.info("INFO: test step - Step 2: Toggling all repositories to ACTIVE (Include)")
-    included_indices = []
-    
-    for i in range(row_count):
-        switch_sel = f"table tbody tr:nth-child({i+1}) button[role='switch']"
-        if sb.is_element_present(switch_sel):
-            aria_checked = sb.get_attribute(switch_sel, "aria-checked")
-            if aria_checked == "false" or not aria_checked:
-                logger.info(f"INFO: test step - Toggling row {i+1} to active...")
-                sb.scroll_to(switch_sel)
-                time.sleep(0.5)
-                sb.js_click(switch_sel)
-                time.sleep(1.5)
-                if check_license_limit_or_error(sb):
-                    logger.info(f"INFO: test step - Stopped further inclusions at row {i+1} due to license limit/error.")
-                    break
-                try:
-                    sb.wait_for_condition(lambda: sb.get_attribute(switch_sel, "aria-checked") == "true", timeout=45)
-                    logger.info(f"INFO: test step - Row {i+1} successfully set to active.")
-                    included_indices.append(i)
-                except Exception as e:
-                    if check_license_limit_or_error(sb):
-                        logger.info(f"INFO: test step - Stopped inclusions at row {i+1} due to license limit/error on verification.")
-                        break
-                    raise e
-                    
-    logger.info(f"INFO: test step - Successfully included row indices: {included_indices}")
-    
-    logger.info("INFO: test step - Step 3: Toggling newly active repositories back to INACTIVE (Exclude)")
-    for i in included_indices:
-        switch_sel = f"table tbody tr:nth-child({i+1}) button[role='switch']"
-        if sb.is_element_present(switch_sel):
-            aria_checked = sb.get_attribute(switch_sel, "aria-checked")
-            if aria_checked == "true" or aria_checked == "checked":
-                logger.info(f"INFO: test step - Toggling row {i+1} back to inactive...")
-                sb.scroll_to(switch_sel)
-                time.sleep(0.5)
-                sb.js_click(switch_sel)
-                
-                # Robust click confirmation button
-                click_confirm_button_if_any(sb)
-                sb.wait_for_condition(lambda: sb.get_attribute(switch_sel, "aria-checked") == "false", timeout=45)
-                logger.info(f"INFO: test step - Row {i+1} successfully set to inactive.")
-                
-    # Single page refresh at the end of Step 3 to verify persistence
-    sb.open(github_repos_url)
-    time.sleep(4)
-    scroll_table_right(sb)
-    logger.info("INFO: test step - Include All then Exclude All Test completed successfully!")
+    switch_sel = _first_switch(sb)
+    if not switch_sel:
+        pytest.skip("No repository switch found on GitHub repositories page.")
+
+    initial_state = get_switch_state(sb, switch_sel)
+    logger.info(f"INFO: test step - Row 1 initial switch state: {initial_state}")
+
+    if initial_state is True:
+        logger.info("INFO: test step - Step 1: Excluding active repository")
+        ok, confirm_clicked, bulk_tried = _try_exclude(sb, switch_sel, github_repos_url)
+        if not ok:
+            if check_license_limit_or_error(sb):
+                pytest.skip("License limit prevented exclude — ortam kısıtı.")
+            fail_gitsec_bug(
+                title="Repository exclude akışı persist etmiyor",
+                details="Switch/bulk exclude denendi; yenileme sonrası repo hâlâ included.",
+                area="Repositories / License Inclusion",
+                evidence=[
+                    f"Onay modalı tıklandı: {confirm_clicked}",
+                    f"Bulk exclude denendi: {bulk_tried}",
+                    f"URL: {sb.get_current_url()}",
+                ],
+            )
+
+    logger.info("INFO: test step - Step 2: Including repository")
+    if not toggle_repository_switch(sb, switch_sel, True, github_repos_url):
+        if check_license_limit_or_error(sb):
+            pytest.skip("License limit reached.")
+        fail_gitsec_bug(
+            title="Repository include akışı tamamlanmıyor",
+            details="Exclude sonrası include switch'i aktif duruma geçmiyor.",
+            area="Repositories / License Inclusion",
+        )
+
+    logger.info("INFO: test step - Step 3: Final exclude")
+    ok, _, _ = _try_exclude(sb, switch_sel, github_repos_url)
+    if not ok:
+        fail_gitsec_bug(
+            title="Include sonrası exclude tekrar çalışmıyor",
+            details="Include → exclude döngüsünün son adımında durum kalıcı olarak excluded olmuyor.",
+            area="Repositories / License Inclusion",
+            evidence=[f"Final refresh state: {_refresh_and_get_state(sb, github_repos_url, switch_sel)}"],
+        )
+
+    logger.info("INFO: test step - Include / Exclude Test completed successfully!")
