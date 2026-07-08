@@ -88,7 +88,7 @@ def pytest_collection_finish(session):
 
     errors = run_preflight()
     if errors:
-        msg = "Staging preflight başarısız:\n" + "\n".join(f"  - {e}" for e in errors)
+        msg = "Staging preflight failed:\n" + "\n".join(f"  - {e}" for e in errors)
         pytest.exit(msg, returncode=1)
 
 

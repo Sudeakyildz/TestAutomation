@@ -19,7 +19,7 @@ def main():
         for err in errors:
             print(f"  - {err}")
         sys.exit(1)
-    print("PREFLIGHT OK — staging ortamı hazır.")
+    print("PREFLIGHT OK - staging environment is ready.")
 
 
 if __name__ == "__main__":
