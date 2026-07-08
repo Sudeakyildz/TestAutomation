@@ -33,6 +33,8 @@ jobs:
     env:
       PYTHONUTF8: '1'
       PYTHONIOENCODING: 'utf-8'
+      CI: 'true'
+      GITHUB_ACTIONS: 'true'
       DASHBOARD_BASE_URL: https://staging.dashboard.gitsec.io
       API_BASE_URL: https://staging.api.gitsec.io
       E2E_INVITE_ROLE_ID: '4'
@@ -74,6 +76,8 @@ jobs:
           WORKSPACE_ID: ${{ secrets.WORKSPACE_ID }}
           GITHUB_TEST_USER: ${{ secrets.E2E_GITHUB_TEST_USER }}
           GITHUB_TEST_PASSWORD: ${{ secrets.E2E_GITHUB_TEST_PASSWORD }}
+          GITHUB_MAIL_USER: ${{ secrets.E2E_GITHUB_MAIL_USER }}
+          GITHUB_MAIL_PASSWORD: ${{ secrets.E2E_GITHUB_MAIL_PASSWORD }}
         run: python scripts/preflight.py
 
       - name: Run tests
@@ -83,6 +87,8 @@ jobs:
           WORKSPACE_ID: ${{ secrets.WORKSPACE_ID }}
           GITHUB_TEST_USER: ${{ secrets.E2E_GITHUB_TEST_USER }}
           GITHUB_TEST_PASSWORD: ${{ secrets.E2E_GITHUB_TEST_PASSWORD }}
+          GITHUB_MAIL_USER: ${{ secrets.E2E_GITHUB_MAIL_USER }}
+          GITHUB_MAIL_PASSWORD: ${{ secrets.E2E_GITHUB_MAIL_PASSWORD }}
           GITSEC_HTML_REPORT: '1'
         run: >
           python -m pytest tests/

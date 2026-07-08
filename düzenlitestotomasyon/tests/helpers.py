@@ -7,6 +7,22 @@ from pages.dashboard_page import DashboardPage
 
 logger = logging.getLogger("GitsecE2E")
 
+ADD_PROVIDER_PATHS = (
+    "repositories/add",
+    "repositories/github/add",
+    "integrations",
+    "settings/integrations",
+)
+
+
+def is_ci():
+    """GitHub Actions veya CI ortaminda True."""
+    return (
+        os.getenv("CI", "").lower() in ("true", "1", "yes")
+        or os.getenv("GITHUB_ACTIONS", "").lower() == "true"
+    )
+
+
 def dismiss_ui_blockers(sb):
     """Tour, alert dialog ve açık modal overlay'lerini kapatır."""
     login_page = LoginPage(sb)
@@ -270,6 +286,51 @@ def logout_via_ui(sb):
     return False
 
 
+def _session_needs_refresh(sb, base_url, workspace_id):
+    """Oturum gecersiz veya dashboard yuklenmediyse True."""
+    current_url = sb.get_current_url().lower()
+    if "sign-in" in current_url:
+        return True
+    try:
+        body = sb.get_text("body").lower()
+    except Exception:
+        body = ""
+    if "404" in body or "not found" in body:
+        return True
+    if "failed to load analytics" in body:
+        return True
+    if sb.is_element_visible("div:contains('Session Expired')"):
+        return True
+    if sb.is_element_visible("button:contains('Sign In')"):
+        return True
+    if f"/{workspace_id}/" not in sb.get_current_url() and current_url.rstrip("/").endswith("/dashboard"):
+        return True
+    if not sb.is_element_visible("main"):
+        return True
+    return False
+
+
+def open_add_provider_page(sb):
+    """Add provider sayfasini bilinen route adaylari uzerinden acar."""
+    cfg = get_env_config()
+    perform_setup_and_login(sb)
+    last_url = None
+    for path in ADD_PROVIDER_PATHS:
+        url = f"{cfg['base_url']}/{cfg['workspace_id']}/{path.lstrip('/')}"
+        last_url = url
+        sb.open(url)
+        time.sleep(3)
+        dismiss_ui_blockers(sb)
+        body = sb.get_text("body").lower()
+        if "404" in body or "not found" in body:
+            continue
+        if sb.is_element_visible("main") and any(
+            kw in body for kw in ("github", "bitbucket", "gitlab", "provider", "integrat")
+        ):
+            return url
+    raise AssertionError(f"Add provider page not reachable. Last tried: {last_url}")
+
+
 def perform_setup_and_login(sb):
     """Helper to perform dashboard login and return dashboard page object."""
     cfg = get_env_config()
@@ -277,42 +338,37 @@ def perform_setup_and_login(sb):
     password = cfg["password"]
     base_url = cfg["base_url"]
     workspace_id = cfg["workspace_id"]
+    dashboard_url = f"{base_url}/{workspace_id}/dashboard"
 
     assert email, "E2E_USER_EMAIL environment variable is not defined"
     assert password, "E2E_USER_PASSWORD environment variable is not defined"
-    
+
     login_page = LoginPage(sb)
-    loaded = login_page.load_session_cookies(base_url)
-    if loaded:
-        logger.info("INFO: test step - Reusing existing session cookies to bypass login")
-        sb.open(f"{base_url}/{workspace_id}/dashboard")
-        time.sleep(3)
-        current_url = sb.get_current_url()
-        is_404 = "404" in sb.get_text("body").lower() if sb.is_element_visible("body") else False
-        session_expired_modal = (
-            sb.is_element_visible("div:contains('Session Expired')") or 
-            sb.is_element_visible("button:contains('Sign In')") or
-            sb.is_element_visible("h2:contains('Session Expired')") or
-            "failed to load analytics" in sb.get_text("body").lower()
-        )
-        if "sign-in" in current_url or is_404 or not sb.is_element_visible("main") or session_expired_modal:
-            logger.info("INFO: test step - Session expired or modal detected. Re-authenticating...")
-            if sb.is_element_visible("button:contains('Sign In')"):
-                try:
-                    sb.click("button:contains('Sign In')")
-                    time.sleep(2)
-                except:
-                    pass
-            loaded = login_page.api_login(base_url, email, password)
-            if loaded:
-                sb.open(f"{base_url}/{workspace_id}/dashboard")
-                login_page.save_session_cookies()
-            
+    loaded = False
+
+    if is_ci():
+        logger.info("INFO: test step - CI detected; forcing fresh API login (no cookie reuse)")
+        loaded = login_page.api_login(base_url, email, password)
+        if loaded:
+            sb.open(dashboard_url)
+    else:
+        loaded = login_page.load_session_cookies(base_url)
+        if loaded:
+            logger.info("INFO: test step - Reusing existing session cookies to bypass login")
+            sb.open(dashboard_url)
+            time.sleep(3)
+            if _session_needs_refresh(sb, base_url, workspace_id):
+                logger.info("INFO: test step - Session expired or invalid. Re-authenticating...")
+                loaded = login_page.api_login(base_url, email, password)
+                if loaded:
+                    sb.open(dashboard_url)
+                    login_page.save_session_cookies()
+
     if not loaded:
         logger.info("INFO: test step - No valid cookies found, doing full login / API bypass")
         loaded = login_page.api_login(base_url, email, password)
         if loaded:
-            sb.open(f"{base_url}/{workspace_id}/dashboard")
+            sb.open(dashboard_url)
             login_page.save_session_cookies()
         else:
             login_page.navigate_to_login(base_url)
@@ -321,20 +377,29 @@ def perform_setup_and_login(sb):
                 sb.wait_for_condition(lambda: f"/{workspace_id}/" in sb.get_current_url(), timeout=30)
             except Exception as e:
                 logger.error(f"ERROR: Redirection to dashboard timed out: {str(e)}")
-            
+
             login_page.bypass_onboarding()
             login_page.close_popups_if_any()
             login_page.save_session_cookies()
-    
+
+    if _session_needs_refresh(sb, base_url, workspace_id):
+        logger.info("INFO: test step - Dashboard still invalid after login; retrying API login once")
+        if login_page.api_login(base_url, email, password):
+            sb.open(dashboard_url)
+            time.sleep(2)
+
     try:
-        sb.wait_for_condition(lambda: f"/{workspace_id}/" in sb.get_current_url(), timeout=15)
-        sb.assert_element("main", timeout=15)
+        sb.wait_for_condition(lambda: f"/{workspace_id}/" in sb.get_current_url(), timeout=20)
+        sb.assert_element("main", timeout=20)
     except Exception as e:
         logger.error(f"ERROR: Dashboard loading check failed: {str(e)}")
-        
+        sb.open(dashboard_url)
+        time.sleep(3)
+        sb.assert_element("main", timeout=20)
+
     login_page.bypass_onboarding()
     login_page.close_popups_if_any()
-    
+
     return DashboardPage(sb)
 
 def scroll_table_right(sb):

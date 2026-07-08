@@ -18,6 +18,7 @@ from tests.helpers import (
     get_env_config,
     assert_main_visible,
     safe_click,
+    open_add_provider_page,
 )
 from utils.api_client import GitsecApiClient
 
@@ -74,11 +75,7 @@ def test_repositories_table_has_switches(sb):
 
 def test_repositories_add_provider_page(sb):
     """Add provider sayfası erişilebilir."""
-    cfg = get_env_config()
-    perform_setup_and_login(sb)
-    sb.open(f"{cfg['base_url']}/{cfg['workspace_id']}/repositories/add")
-    time.sleep(3)
-    dismiss_ui_blockers(sb)
+    open_add_provider_page(sb)
     body = sb.get_text("body").lower()
     assert "github" in body or "bitbucket" in body or "gitlab" in body or "provider" in body
     logger.info("INFO: test step - Add provider page loaded")

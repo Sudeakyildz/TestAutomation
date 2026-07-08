@@ -10,7 +10,7 @@ import pytest
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from tests.helpers import perform_setup_and_login, dismiss_ui_blockers, get_env_config
+from tests.helpers import perform_setup_and_login, dismiss_ui_blockers, get_env_config, open_add_provider_page
 from utils.api_client import GitsecApiClient
 
 logger = __import__("logging").getLogger("GitsecE2E")
@@ -18,11 +18,7 @@ logger = __import__("logging").getLogger("GitsecE2E")
 
 def test_bitbucket_gitlab_add_provider_pages(sb):
     """Bitbucket ve GitLab add-provider sayfaları erişilebilir."""
-    cfg = get_env_config()
-    perform_setup_and_login(sb)
-    sb.open(f"{cfg['base_url']}/{cfg['workspace_id']}/repositories/add")
-    time.sleep(3)
-    dismiss_ui_blockers(sb)
+    open_add_provider_page(sb)
     body = sb.get_text("body").lower()
     assert "bitbucket" in body or "gitlab" in body or "github" in body
     logger.info("INFO: test step - Provider add page lists integrations")

@@ -191,7 +191,16 @@ class LoginPage(BasePage):
             logger.error("ERROR: API login bypass failed after submit captcha detection.")
         time.sleep(3)
         
+    def _is_ci(self):
+        return (
+            os.getenv("CI", "").lower() in ("true", "1", "yes")
+            or os.getenv("GITHUB_ACTIONS", "").lower() == "true"
+        )
+
     def save_session_cookies(self):
+        if self._is_ci():
+            logger.info("INFO: test step - CI environment; skipping session cookie file write")
+            return
         cookie_file = os.path.join(os.path.dirname(os.path.dirname(__file__)), "session_cookies.json")
         logger.info(f"INFO: test step - Saving session cookies to {cookie_file}")
         try:
@@ -204,6 +213,9 @@ class LoginPage(BasePage):
             logger.error(f"ERROR: Failed to save cookies: {str(e)}")
 
     def load_session_cookies(self, base_url):
+        if self._is_ci():
+            logger.info("INFO: test step - CI environment; skipping session cookie file load")
+            return False
         cookie_file = os.path.join(os.path.dirname(os.path.dirname(__file__)), "session_cookies.json")
         loaded_file = False
         if os.path.exists(cookie_file):

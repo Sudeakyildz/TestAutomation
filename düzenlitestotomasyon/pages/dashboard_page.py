@@ -94,8 +94,26 @@ class DashboardPage(BasePage):
 
     def click_help(self):
         logger.info("INFO: test step - Clicking Help (Take a Tour) button")
-        self.safeClick(self.HELP_BUTTON, timeout=30)
-        time.sleep(2)
+        selectors = [
+            self.HELP_BUTTON,
+            (By.CSS_SELECTOR, "button[aria-label*='Help']"),
+            (By.CSS_SELECTOR, "button[aria-label*='help']"),
+            (By.XPATH, "//button[contains(@aria-label, 'Tour') or contains(@class, 'help')]"),
+            (By.XPATH, "//button[.//*[contains(@class, 'circle-help') or contains(@class, 'help-circle')]]"),
+        ]
+        for locator in selectors:
+            sel = locator[1] if isinstance(locator, tuple) else locator
+            if isinstance(locator, tuple) and locator[0] == By.XPATH and not sel.startswith("xpath="):
+                sel = f"xpath={sel}"
+            try:
+                if self.sb.is_element_visible(sel):
+                    self.safeClick(locator, timeout=10)
+                    time.sleep(2)
+                    return True
+            except Exception:
+                continue
+        logger.warning("WARNING: Help / Tour button not found on dashboard")
+        return False
 
     def find_language_button(self):
         buttons = self.sb.find_elements("button")

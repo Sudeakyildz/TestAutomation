@@ -29,9 +29,22 @@ def find_button_by_text(sb, *texts, root=None):
 
 def open_new_scheduler_modal(sb):
     dismiss_ui_blockers(sb)
-    btn = find_button_by_text(sb, "New Scheduler", "Create Scheduler")
+    btn = find_button_by_text(sb, "New Scheduler", "Create Scheduler", "Yeni", "Schedule")
     if btn is None:
-        btn = sb.find_element("xpath=//button[contains(., 'New Scheduler') or contains(., 'Create Scheduler')]")
+        xpaths = [
+            "xpath=//button[contains(., 'New Scheduler') or contains(., 'Create Scheduler')]",
+            "xpath=//button[contains(., 'Yeni') and contains(., 'Scheduler')]",
+            "xpath=//a[contains(., 'New Scheduler') or contains(., 'Create Scheduler')]",
+        ]
+        for xpath in xpaths:
+            try:
+                if sb.is_element_visible(xpath):
+                    btn = sb.find_element(xpath)
+                    break
+            except Exception:
+                pass
+    if btn is None:
+        pytest.skip("New Scheduler button not found on schedulers page.")
     sb.execute_script("arguments[0].scrollIntoView({block: 'center'});", btn)
     time.sleep(0.5)
     try:

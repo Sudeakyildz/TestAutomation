@@ -55,6 +55,37 @@ if os.path.exists(root_env_path):
     load_dotenv(dotenv_path=root_env_path)
 
 
+def _bootstrap_ci_env():
+    """CI ortaminda eski cookie dosyasini sil ve secret alias'larini esle."""
+    is_ci = (
+        os.getenv("CI", "").lower() in ("true", "1", "yes")
+        or os.getenv("GITHUB_ACTIONS", "").lower() == "true"
+    )
+    if not is_ci:
+        return
+
+    cookie_file = os.path.join(os.path.dirname(__file__), "session_cookies.json")
+    if os.path.exists(cookie_file):
+        try:
+            os.remove(cookie_file)
+            logger.info("Removed stale session_cookies.json for CI run")
+        except OSError as exc:
+            logger.warning("Could not remove session_cookies.json: %s", exc)
+
+    aliases = (
+        ("E2E_GITHUB_MAIL_USER", "GITHUB_MAIL_USER"),
+        ("E2E_GITHUB_MAIL_PASSWORD", "GITHUB_MAIL_PASSWORD"),
+        ("E2E_GITHUB_TEST_USER", "GITHUB_TEST_USER"),
+        ("E2E_GITHUB_TEST_PASSWORD", "GITHUB_TEST_PASSWORD"),
+    )
+    for src, dst in aliases:
+        if not os.getenv(dst) and os.getenv(src):
+            os.environ[dst] = os.getenv(src)
+
+
+_bootstrap_ci_env()
+
+
 def pytest_addoption(parser):
     parser.addoption(
         "--skip-preflight",
@@ -240,6 +271,12 @@ def pytest_collection_modifyitems(config, items):
 
         if module_name in GITHUB_MODULES:
             item.add_marker(pytest.mark.requires_github)
+            if not (
+                os.getenv("GITHUB_TEST_USER") and os.getenv("GITHUB_TEST_PASSWORD")
+            ):
+                item.add_marker(
+                    pytest.mark.skip(reason="GitHub test credentials not configured")
+                )
 
         uses_sb = "sb" in item.fixturenames
         uses_api = "api_client" in item.fixturenames
