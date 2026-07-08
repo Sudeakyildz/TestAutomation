@@ -11,6 +11,15 @@ REQUIRED_ENV = (
 )
 
 
+def _ascii_safe(value):
+    text = str(value)
+    try:
+        text.encode("ascii")
+        return text
+    except UnicodeEncodeError:
+        return text.encode("ascii", "backslashreplace").decode("ascii")
+
+
 def validate_env():
     """Zorunlu env degiskenlerini kontrol eder."""
     errors = []
@@ -31,7 +40,7 @@ def validate_api_access():
         client = GitsecApiClient()
         client.sign_in(email, password)
     except Exception as exc:
-        errors.append(f"API sign-in failed: {exc}")
+        errors.append(f"API sign-in failed: {_ascii_safe(exc)}")
         return errors
 
     status, payload = client.get(f"/api/workspaces/{workspace_id}")

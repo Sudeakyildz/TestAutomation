@@ -88,7 +88,15 @@ def pytest_collection_finish(session):
 
     errors = run_preflight()
     if errors:
-        msg = "Staging preflight failed:\n" + "\n".join(f"  - {e}" for e in errors)
+        safe_lines = []
+        for err in errors:
+            text = str(err)
+            try:
+                text.encode("ascii")
+            except UnicodeEncodeError:
+                text = text.encode("ascii", "backslashreplace").decode("ascii")
+            safe_lines.append(text)
+        msg = "Staging preflight failed:\n" + "\n".join(f"  - {e}" for e in safe_lines)
         pytest.exit(msg, returncode=1)
 
 

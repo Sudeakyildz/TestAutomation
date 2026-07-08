@@ -33,6 +33,10 @@ jobs:
     env:
       PYTHONUTF8: '1'
       PYTHONIOENCODING: 'utf-8'
+      DASHBOARD_BASE_URL: https://staging.dashboard.gitsec.io
+      API_BASE_URL: https://staging.api.gitsec.io
+      E2E_INVITE_ROLE_ID: '4'
+      HEADLESS: 'true'
 
     steps:
       - uses: actions/checkout@v4
@@ -68,8 +72,6 @@ jobs:
           E2E_USER_EMAIL: ${{ secrets.E2E_USER_EMAIL }}
           E2E_USER_PASSWORD: ${{ secrets.E2E_USER_PASSWORD }}
           WORKSPACE_ID: ${{ secrets.WORKSPACE_ID }}
-          DASHBOARD_BASE_URL: ${{ secrets.DASHBOARD_BASE_URL || 'https://staging.dashboard.gitsec.io' }}
-          API_BASE_URL: ${{ secrets.API_BASE_URL || 'https://staging.api.gitsec.io' }}
           GITHUB_TEST_USER: ${{ secrets.E2E_GITHUB_TEST_USER }}
           GITHUB_TEST_PASSWORD: ${{ secrets.E2E_GITHUB_TEST_PASSWORD }}
         run: python scripts/preflight.py
@@ -79,11 +81,8 @@ jobs:
           E2E_USER_EMAIL: ${{ secrets.E2E_USER_EMAIL }}
           E2E_USER_PASSWORD: ${{ secrets.E2E_USER_PASSWORD }}
           WORKSPACE_ID: ${{ secrets.WORKSPACE_ID }}
-          DASHBOARD_BASE_URL: ${{ secrets.DASHBOARD_BASE_URL || 'https://staging.dashboard.gitsec.io' }}
-          API_BASE_URL: ${{ secrets.API_BASE_URL || 'https://staging.api.gitsec.io' }}
           GITHUB_TEST_USER: ${{ secrets.E2E_GITHUB_TEST_USER }}
           GITHUB_TEST_PASSWORD: ${{ secrets.E2E_GITHUB_TEST_PASSWORD }}
-          E2E_INVITE_ROLE_ID: ${{ secrets.E2E_INVITE_ROLE_ID || '4' }}
           GITSEC_HTML_REPORT: '1'
         run: >
           python -m pytest tests/
