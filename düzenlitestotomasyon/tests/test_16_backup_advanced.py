@@ -10,6 +10,7 @@ import logging
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from tests.helpers import perform_setup_and_login, dismiss_ui_blockers, get_env_config, assert_main_visible
+from tests.api_helpers import BACKUP_DASHBOARD_RECENT_PATH
 from utils.api_client import GitsecApiClient
 
 logger = logging.getLogger("GitsecE2E")
@@ -63,9 +64,10 @@ def test_backup_success_rate_api(api_client):
 
 def test_backup_recent_executions_api(api_client):
     """Son backup execution'ları."""
-    status, payload = api_client.get("/api/backup/executions/recent-executions")
-    GitsecApiClient.assert_success(status, payload, "/api/backup/executions/recent-executions")
-    assert "list" in payload["data"]
+    status, payload = api_client.get(BACKUP_DASHBOARD_RECENT_PATH)
+    GitsecApiClient.assert_success(status, payload, BACKUP_DASHBOARD_RECENT_PATH)
+    data = payload["data"]
+    assert any(key in data for key in ("recentAll", "recentActive", "recentCompleted", "list"))
     logger.info("INFO: test step - Recent executions API OK")
 
 

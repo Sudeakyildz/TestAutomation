@@ -178,10 +178,7 @@ class LoginPage(BasePage):
         time.sleep(3)
         
     def _is_ci(self):
-        return (
-            os.getenv("CI", "").lower() in ("true", "1", "yes")
-            or os.getenv("GITHUB_ACTIONS", "").lower() == "true"
-        )
+        return os.getenv("GITHUB_ACTIONS", "").lower() == "true"
 
     def save_session_cookies(self):
         if self._is_ci():

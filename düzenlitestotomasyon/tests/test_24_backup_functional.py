@@ -8,7 +8,7 @@ import pytest
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from tests.api_helpers import get_first_backup_execution, get_first_backup_schedule, get_first_repository
+from tests.api_helpers import get_first_backup_execution, get_first_backup_schedule, get_first_repository, get_backup_schedule_detail
 from utils.api_client import GitsecApiClient
 
 logger = __import__("logging").getLogger("GitsecE2E")
@@ -46,7 +46,7 @@ def test_backup_schedule_detail(api_client):
     schedule_id, _, _ = get_first_backup_schedule(api_client)
     if not schedule_id:
         pytest.skip("No backup schedule found.")
-    status, payload = api_client.get(f"/api/backup/schedules/{schedule_id}")
+    status, payload = get_backup_schedule_detail(api_client, schedule_id)
     assert status in (200, 404), f"Unexpected status: {status}"
 
 

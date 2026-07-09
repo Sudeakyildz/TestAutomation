@@ -15,11 +15,12 @@ from tests.helpers import (
     perform_setup_and_login,
     dismiss_ui_blockers,
     get_env_config,
-    assert_url_contains,
     assert_main_visible,
     safe_click,
 )
+from tests.journey_helpers import open_workspace_path
 from utils.api_client import GitsecApiClient
+from utils.waits import wait_for_page_ready
 
 logger = logging.getLogger("GitsecE2E")
 
@@ -46,7 +47,7 @@ def test_workspace_settings_page(sb):
     loaded = False
     for url in paths:
         sb.open(url)
-        time.sleep(3)
+        wait_for_page_ready(sb)
         dismiss_ui_blockers(sb)
         if "404" not in sb.get_text("body").lower() and sb.is_element_visible("main"):
             loaded = True
@@ -81,7 +82,7 @@ def test_workspace_members_page(sb):
     ]
     for url in paths:
         sb.open(url)
-        time.sleep(3)
+        wait_for_page_ready(sb)
         dismiss_ui_blockers(sb)
         body = sb.get_text("body").lower()
         if "404" not in body and ("member" in body or "team" in body or "invite" in body or "üye" in body):

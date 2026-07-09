@@ -7,6 +7,7 @@ const { diagnose, extractCurrentStep, TEST_META } = require('./utils/failure_dia
 const PORT = 3050;
 const REPORTS_DIR = path.join(__dirname, 'reports');
 const LAST_RESULTS_PATH = path.join(REPORTS_DIR, 'lastResults.json');
+const SESSION_COOKIES_PATH = path.join(__dirname, 'session_cookies.json');
 const SENSITIVE_ENV_PATTERN = /password|secret|token|api_key|apikey/i;
 
 const clients = new Set();
@@ -47,6 +48,37 @@ function maskEnvValue(key, value) {
 }
 
 loadLastResults();
+
+function clearSessionCookies() {
+  try {
+    if (fs.existsSync(SESSION_COOKIES_PATH)) {
+      fs.unlinkSync(SESSION_COOKIES_PATH);
+      return true;
+    }
+  } catch (e) {
+    console.warn('[Dashboard] session_cookies.json silinemedi:', e.message);
+  }
+  return false;
+}
+
+function resetPanelState(options = {}) {
+  const { clearLogs = true, clearSession = false, clearResults = false } = options;
+  if (clearLogs) {
+    logBuffer = '';
+  }
+  if (clearSession) {
+    clearSessionCookies();
+  }
+  if (clearResults) {
+    lastResults = {};
+    saveLastResults();
+  }
+  return {
+    clearedLogs: !!clearLogs,
+    clearedSession: !!clearSession,
+    clearedResults: !!clearResults,
+  };
+}
 
 function broadcast(event, data) {
   const message = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
@@ -162,10 +194,14 @@ function finishTestRun(code, testFile) {
   broadcast('step', { step: null, testFile: null });
 }
 
-function startPytest(testFile, headed, markers) {
+function startPytest(testFile, headed, markers, skipPreflight, freshStart) {
   testRunning = true;
   logBuffer = '';
   currentTestFile = testFile || null;
+
+  if (freshStart) {
+    clearSessionCookies();
+  }
 
   const junitName = testFile
     ? `junit_${testFile.replace('.py', '')}.xml`
@@ -191,7 +227,14 @@ function startPytest(testFile, headed, markers) {
 
   args.push('-s', '--tb=short', `--junitxml=${junitPath}`);
 
+  if (skipPreflight) {
+    args.push('--skip-preflight');
+  }
+
   const runEnv = { ...process.env, FORCE_COLOR: '1', HEADLESS: headed ? 'false' : 'true' };
+  if (freshStart) {
+    runEnv.GITSEC_FRESH_START = '1';
+  }
   const runCmd = `python -m pytest ${args.join(' ')}`;
 
   broadcast('status', {
@@ -209,6 +252,14 @@ function startPytest(testFile, headed, markers) {
   if (markers) {
     broadcast('log', `[PANEL] Marker filtresi: -m ${markers}\n\n`);
     logBuffer += `[PANEL] Marker filtresi: -m ${markers}\n\n`;
+  }
+  if (skipPreflight) {
+    broadcast('log', '[PANEL] Preflight atlandi (--skip-preflight)\n\n');
+    logBuffer += '[PANEL] Preflight atlandi (--skip-preflight)\n\n';
+  }
+  if (freshStart) {
+    broadcast('log', '[PANEL] Sifirdan baslat: session_cookies temizlendi, API token cache sifirlanacak\n\n');
+    logBuffer += '[PANEL] Sifirdan baslat: session_cookies temizlendi, API token cache sifirlanacak\n\n';
   }
 
   logBuffer += `[PANEL] Komut: ${runCmd}\n\n`;
@@ -368,10 +419,32 @@ const server = http.createServer((req, res) => {
       currentStep: extractCurrentStep(logBuffer),
       suite: suiteState,
     })}\n\n`);
-    if (logBuffer) {
+    if (logBuffer && testRunning) {
       res.write(`event: log\ndata: ${JSON.stringify(logBuffer)}\n\n`);
     }
     req.on('close', () => clients.delete(res));
+    return;
+  }
+
+  if (req.url === '/api/reset' && req.method === 'POST') {
+    let body = '';
+    req.on('data', chunk => { body += chunk.toString(); });
+    req.on('end', () => {
+      try {
+        const opts = JSON.parse(body || '{}');
+        const result = resetPanelState({
+          clearLogs: opts.logs !== false,
+          clearSession: !!opts.session,
+          clearResults: !!opts.results,
+        });
+        broadcast('log', '[PANEL] Panel durumu sifirlandi.\n\n');
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: true, ...result }));
+      } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: err.message }));
+      }
+    });
     return;
   }
 
@@ -380,7 +453,7 @@ const server = http.createServer((req, res) => {
     req.on('data', chunk => { body += chunk.toString(); });
     req.on('end', () => {
       try {
-        const { testFile, headed, markers } = JSON.parse(body || '{}');
+        const { testFile, headed, markers, skipPreflight, freshStart } = JSON.parse(body || '{}');
 
         if (testRunning) {
           res.writeHead(400, { 'Content-Type': 'application/json' });
@@ -388,7 +461,7 @@ const server = http.createServer((req, res) => {
           return;
         }
 
-        startPytest(testFile || null, !!headed, markers || null);
+        startPytest(testFile || null, !!headed, markers || null, !!skipPreflight, !!freshStart);
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({
           success: true,

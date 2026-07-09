@@ -13,6 +13,9 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from pages.login_page import LoginPage
 from tests.helpers import perform_setup_and_login, dismiss_ui_blockers, get_env_config, assert_main_visible
+from tests.journey_helpers import visit_all_core_sidebar_pages, open_workspace_path
+from utils.waits import wait_for_page_ready
+from tests.api_helpers import USER_SESSION_PATH
 from utils.api_client import GitsecApiClient
 
 logger = logging.getLogger("GitsecE2E")
@@ -23,7 +26,7 @@ def test_invalid_workspace_shows_error_or_redirect(sb):
     cfg = get_env_config()
     perform_setup_and_login(sb)
     sb.open(f"{cfg['base_url']}/99999999/dashboard")
-    time.sleep(4)
+    wait_for_page_ready(sb)
     dismiss_ui_blockers(sb)
     body = sb.get_text("body").lower()
     url = sb.get_current_url()
@@ -40,7 +43,7 @@ def test_invalid_workspace_shows_error_or_redirect(sb):
 def test_unauthenticated_api_rejected():
     """Token olmadan korumalı API reddedilir."""
     client = GitsecApiClient()
-    status, payload = client.get("/User/GetProfile", auth=False)
+    status, payload = client.get(USER_SESSION_PATH, auth=False)
     assert status in (401, 403), f"Expected 401/403 without token, got {status}"
     logger.info("INFO: test step - Unauthenticated API rejected")
 
@@ -75,44 +78,8 @@ def test_deep_link_requires_auth(sb):
 
 
 def test_sidebar_navigation_items(sb):
-    """Sidebar veya dashboard kartları ile ana sayfalar arası gezinme."""
-    from pages.dashboard_page import DashboardPage
-
+    """Sidebar ile ana sayfalar arasi gezinme (journey helper)."""
     cfg = get_env_config()
-    dashboard = perform_setup_and_login(sb)
-    sb.open(f"{cfg['base_url']}/{cfg['workspace_id']}/dashboard")
-    time.sleep(3)
-    dismiss_ui_blockers(sb)
-
-    visited = 0
-    nav_links = sb.find_elements("nav a[href], aside a[href]")
-    for link in nav_links:
-        try:
-            href = link.get_attribute("href") or ""
-            if cfg["workspace_id"] not in href:
-                continue
-            if any(p in href for p in ["/repositories", "/backups", "/storage", "/schedulers", "/activity"]):
-                link.click()
-                time.sleep(2)
-                dismiss_ui_blockers(sb)
-                if sb.is_element_present("main") or sb.is_element_present("body"):
-                    visited += 1
-        except Exception:
-            pass
-
-    if visited < 2:
-        for nav_fn in [
-            dashboard.navigate_to_repositories,
-            dashboard.navigate_to_backups,
-            dashboard.navigate_to_storage,
-        ]:
-            try:
-                nav_fn()
-                time.sleep(2)
-                visited += 1
-                dashboard.return_to_dashboard(cfg["base_url"], cfg["workspace_id"])
-            except Exception:
-                pass
-
-    assert visited >= 2, "Could not navigate via sidebar or dashboard cards"
-    logger.info(f"INFO: test step - Navigation visited {visited} pages")
+    results = visit_all_core_sidebar_pages(sb, cfg)
+    assert len([v for v in results.values() if v]) >= 4
+    logger.info("INFO: test step - Sidebar navigation via journey helper OK")

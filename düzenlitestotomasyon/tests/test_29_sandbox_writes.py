@@ -14,7 +14,9 @@ from tests.api_helpers import (
     create_user_invite,
     delete_backup_schedule,
     delete_user_invite,
+    get_backup_schedule_detail,
     get_first_repository,
+    get_user_profile,
     list_items,
     unique_name,
 )
@@ -56,7 +58,7 @@ def test_sandbox_backup_schedule_create_and_delete(api_client, workspace_id):
     if not schedule_id:
         pytest.skip(f"Schedule create not available: {status} {payload}")
 
-    get_status, _ = api_client.get(f"/api/backup/schedules/{schedule_id}")
+    get_status, _ = get_backup_schedule_detail(api_client, schedule_id)
     assert get_status == 200, f"Created schedule not readable: {get_status}"
 
     del_status, _ = delete_backup_schedule(api_client, schedule_id)
@@ -76,8 +78,8 @@ def test_sandbox_user_invite_create_and_delete(api_client, workspace_id):
 
 def test_sandbox_update_profile_roundtrip(api_client):
     """Profil alanını okuyup aynı değerle UpdateProfile gönderir."""
-    status, payload = api_client.get("/User/GetProfile")
-    GitsecApiClient.assert_success(status, payload, "/User/GetProfile")
+    status, payload = get_user_profile(api_client)
+    GitsecApiClient.assert_success(status, payload, "user profile")
     profile = payload["data"]
 
     update_body = {

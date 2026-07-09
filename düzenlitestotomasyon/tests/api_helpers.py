@@ -7,6 +7,10 @@ import uuid
 logger = logging.getLogger("GitsecE2E")
 
 DEFAULT_INVITE_ROLE_ID = int(os.getenv("E2E_INVITE_ROLE_ID", "4"))
+USER_PROFILE_LEGACY_PATH = "/User/GetProfile"
+USER_SESSION_PATH = "/User/GetSession"
+BACKUP_RECENT_EXECUTIONS_PATH = "/api/backup/executions/recent-executions"
+BACKUP_DASHBOARD_RECENT_PATH = "/api/backup/executions/dashboard-recent"
 
 
 def extract_id(payload, *keys):
@@ -52,6 +56,73 @@ def list_items(payload, list_keys=("list", "items")):
     return []
 
 
+def get_user_profile(api_client):
+    """Kullanici profili — GetProfile kaldirildiysa GetSession fallback."""
+    status, payload = api_client.get(USER_PROFILE_LEGACY_PATH)
+    if status == 200:
+        return status, payload
+
+    status, payload = api_client.get(USER_SESSION_PATH)
+    if status != 200 or not isinstance(payload, dict):
+        return status, payload
+
+    session_user = (payload.get("data") or {}).get("sessionUser")
+    if not session_user:
+        return status, payload
+
+    return status, {
+        "success": True,
+        "data": session_user,
+        "_source": USER_SESSION_PATH,
+    }
+
+
+def extract_user_email(profile_payload):
+    """Profil veya session yanitindan e-posta cikarir."""
+    if not isinstance(profile_payload, dict):
+        return None
+    data = profile_payload.get("data", profile_payload)
+    if isinstance(data, dict):
+        if data.get("email"):
+            return data["email"]
+        session_user = data.get("sessionUser")
+        if isinstance(session_user, dict) and session_user.get("email"):
+            return session_user["email"]
+    return None
+
+
+def get_backup_schedule_detail(api_client, schedule_id):
+    """Schedule detayi — GET /schedules/{id} 405 ise tenant listesinden coz."""
+    status, payload = api_client.get(f"/api/backup/schedules/{schedule_id}")
+    if status == 200:
+        return status, payload
+
+    list_status, list_payload = api_client.get("/api/backup/schedules/tenant")
+    if list_status != 200:
+        return status, payload
+
+    for item in list_items(list_payload):
+        sid = item.get("id") or item.get("scheduleId")
+        if str(sid) == str(schedule_id):
+            return 200, {"success": True, "data": item, "_source": "tenant-list"}
+
+    return status, payload
+
+
+def _first_execution_from_payload(payload):
+    data = payload.get("data", payload) if isinstance(payload, dict) else {}
+    if not isinstance(data, dict):
+        return None
+
+    for key in ("list", "recentAll", "recentActive", "recentCompleted", "items"):
+        items = data.get(key)
+        if isinstance(items, list) and items:
+            item = items[0]
+            if isinstance(item, dict):
+                return item.get("id") or item.get("executionId")
+    return None
+
+
 def get_first_repository(api_client):
     status, payload = api_client.get("/api/repositories/tenant")
     if status != 200:
@@ -68,11 +139,12 @@ def get_included_repository_id(api_client, workspace_id=None):
     Schedule oluşturmak için license dahil repo ID döndürür.
     Önce mevcut schedule, sonra tenant listesi denenir.
     """
-    schedule_id, _, _ = get_first_backup_schedule(api_client)
-    if schedule_id:
-        status, payload = api_client.get(f"/api/backup/schedules/{schedule_id}")
-        if status == 200:
-            repo_id = (payload.get("data") or {}).get("repositoryId")
+    status, payload = api_client.get("/api/backup/schedules/tenant")
+    if status == 200:
+        for item in list_items(payload):
+            if not isinstance(item, dict):
+                continue
+            repo_id = item.get("repositoryId")
             if repo_id:
                 return int(repo_id)
 
@@ -104,14 +176,14 @@ def get_first_backup_schedule(api_client):
 
 
 def get_first_backup_execution(api_client):
-    status, payload = api_client.get("/api/backup/executions/recent-executions")
-    if status != 200:
-        return None, status, payload
-    item = first_list_item(payload)
-    if not item:
-        return None, status, payload
-    exec_id = item.get("id") or item.get("executionId")
-    return exec_id, status, payload
+    for path in (BACKUP_RECENT_EXECUTIONS_PATH, BACKUP_DASHBOARD_RECENT_PATH):
+        status, payload = api_client.get(path)
+        if status != 200:
+            continue
+        exec_id = _first_execution_from_payload(payload)
+        if exec_id:
+            return exec_id, status, payload
+    return None, 404, {"message": "No backup execution found"}
 
 
 def get_first_storage_provider(api_client):

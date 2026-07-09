@@ -13,6 +13,7 @@ from selenium.webdriver.common.keys import Keys
 from tests.api_helpers import (
     create_backup_schedule,
     delete_backup_schedule,
+    get_backup_schedule_detail,
     get_first_backup_schedule,
 )
 from tests.helpers import perform_setup_and_login, dismiss_ui_blockers, get_env_config, safe_click
@@ -63,7 +64,7 @@ def test_backup_schedule_get_by_id(api_client):
     schedule_id, _, _ = get_first_backup_schedule(api_client)
     if not schedule_id:
         pytest.skip("No schedule found.")
-    status, payload = api_client.get(f"/api/backup/schedules/{schedule_id}")
+    status, payload = get_backup_schedule_detail(api_client, schedule_id)
     assert status == 200, f"GET schedule failed: {status}"
 
 
@@ -85,9 +86,10 @@ def test_backup_schedule_create_and_delete_api(api_client, workspace_id):
     if not schedule_id:
         pytest.skip(f"Schedule create not available: {status} {payload}")
 
-    get_status, get_payload = api_client.get(f"/api/backup/schedules/{schedule_id}")
+    get_status, get_payload = get_backup_schedule_detail(api_client, schedule_id)
     assert get_status == 200
-    assert get_payload.get("data", {}).get("id") == schedule_id
+    data = get_payload.get("data") or {}
+    assert data.get("id") == schedule_id or str(data.get("id")) == str(schedule_id)
 
     del_status, _ = delete_backup_schedule(api_client, schedule_id)
     assert del_status in (200, 204, 404), f"Delete failed: {del_status}"

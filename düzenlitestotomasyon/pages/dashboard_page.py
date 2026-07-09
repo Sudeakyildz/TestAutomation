@@ -40,8 +40,15 @@ class DashboardPage(BasePage):
 
     def navigate_to_storage(self):
         logger.info("INFO: test step - Clicking Storage size card")
+        try:
+            self.sb.scroll_to("a[href*='/storage']")
+        except Exception:
+            pass
         self.safeClick(self.STORAGE_CARD, timeout=30)
-        time.sleep(2)
+        try:
+            self.sb.wait_for_condition(lambda: "/storage" in self.sb.get_current_url(), timeout=12)
+        except Exception:
+            time.sleep(2)
 
     def navigate_to_active_tasks_view_all(self):
         logger.info("INFO: test step - Clicking Active Tasks View All")

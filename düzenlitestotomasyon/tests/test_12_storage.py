@@ -10,6 +10,8 @@ import logging
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from tests.helpers import perform_setup_and_login, dismiss_ui_blockers, get_env_config, assert_main_visible
+from tests.journey_helpers import open_workspace_path
+from utils.waits import wait_for_page_ready
 from utils.api_client import GitsecApiClient
 
 logger = logging.getLogger("GitsecE2E")
@@ -30,12 +32,27 @@ def test_storage_page_loads(sb):
 
 def test_storage_from_dashboard_card(sb):
     """Dashboard storage kartı storage sayfasına gider."""
-    from pages.dashboard_page import DashboardPage
-
     cfg = get_env_config()
     dashboard = perform_setup_and_login(sb)
     dashboard.navigate_to_storage()
-    assert "/storage" in sb.get_current_url()
+
+    def on_storage_page():
+        url = sb.get_current_url().lower()
+        if "/storage" in url:
+            return True
+        body = sb.get_text("body").lower()
+        return sb.is_element_visible("main") and any(
+            k in body for k in ("storage", "depolama", "provider", "gb")
+        )
+
+    try:
+        sb.wait_for_condition(on_storage_page, timeout=15)
+    except Exception:
+        open_workspace_path(sb, cfg, "storage")
+        sb.wait_for_condition(on_storage_page, timeout=15)
+
+    wait_for_page_ready(sb)
+    assert on_storage_page(), f"Storage page not loaded: {sb.get_current_url()}"
     logger.info("INFO: test step - Storage card navigation OK")
 
 

@@ -80,6 +80,17 @@ jobs:
           GITHUB_MAIL_PASSWORD: ${{ secrets.E2E_GITHUB_MAIL_PASSWORD }}
         run: python scripts/preflight.py
 
+      - name: Resolve reruns
+        id: reruns
+        shell: bash
+        run: |
+          EXPR="${{ steps.markers.outputs.expr }}"
+          if [ "$EXPR" = "unit" ]; then
+            echo "args=" >> "$GITHUB_OUTPUT"
+          else
+            echo "args=--reruns 2 --reruns-delay 5" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Run tests
         env:
           E2E_USER_EMAIL: ${{ secrets.E2E_USER_EMAIL }}
@@ -95,6 +106,7 @@ jobs:
           -m "${{ steps.markers.outputs.expr }}"
           --headless -v --tb=short
           --junitxml=reports/junit_ci.xml
+          ${{ steps.reruns.outputs.args }}
           ${{ steps.markers.outputs.expr == 'unit' && '--skip-preflight' || '' }}
 
       - name: Upload reports

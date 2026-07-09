@@ -24,6 +24,13 @@ FUNCTIONAL_API_MODULES = {
     "test_26_scheduler_crud.py",
     "test_27_storage_functional.py",
     "test_29_sandbox_writes.py",
+    "test_32_backup_execution_ui.py",
+    "test_34_activity_journey.py",
+}
+
+JOURNEY_MODULES = {
+    "test_30_onboarding_journey.py",
+    "test_33_sidebar_journey.py",
 }
 
 UNIT_MODULES = {
@@ -60,11 +67,8 @@ if os.path.exists(root_env_path):
 
 
 def _bootstrap_ci_env():
-    """CI ortaminda eski cookie dosyasini sil ve secret alias'larini esle."""
-    is_ci = (
-        os.getenv("CI", "").lower() in ("true", "1", "yes")
-        or os.getenv("GITHUB_ACTIONS", "").lower() == "true"
-    )
+    """GitHub Actions ortaminda eski cookie dosyasini sil ve secret alias'larini esle."""
+    is_ci = os.getenv("GITHUB_ACTIONS", "").lower() == "true"
     if not is_ci:
         return
 
@@ -106,6 +110,19 @@ def pytest_configure(config):
         )
         config.option.self_contained_html = True
 
+    if os.getenv("GITSEC_FRESH_START") == "1":
+        from utils.auth import clear_sign_in_token_cache
+
+        cookie_file = os.path.join(os.path.dirname(__file__), "session_cookies.json")
+        if os.path.exists(cookie_file):
+            try:
+                os.remove(cookie_file)
+                logger.info("Fresh start: removed session_cookies.json")
+            except OSError as exc:
+                logger.warning("Fresh start: could not remove session_cookies.json: %s", exc)
+        clear_sign_in_token_cache()
+        logger.info("Fresh start: auth token cache cleared")
+
 
 def pytest_collection_finish(session):
     if session.config.getoption("--skip-preflight") or os.getenv("GITSEC_SKIP_PREFLIGHT") == "1":
@@ -119,18 +136,11 @@ def pytest_collection_finish(session):
     if not staging_items:
         return
 
-    from tests.preflight import run_preflight
+    from tests.preflight import format_preflight_error, run_preflight
 
     errors = run_preflight()
     if errors:
-        safe_lines = []
-        for err in errors:
-            text = str(err)
-            try:
-                text.encode("ascii")
-            except UnicodeEncodeError:
-                text = text.encode("ascii", "backslashreplace").decode("ascii")
-            safe_lines.append(text)
+        safe_lines = [format_preflight_error(str(err)) for err in errors]
         msg = "Staging preflight failed:\n" + "\n".join(f"  - {e}" for e in safe_lines)
         pytest.exit(msg, returncode=1)
 
@@ -263,6 +273,9 @@ def pytest_collection_modifyitems(config, items):
 
         if module_name in FUNCTIONAL_API_MODULES:
             item.add_marker(pytest.mark.functional)
+
+        if module_name in JOURNEY_MODULES:
+            item.add_marker(pytest.mark.journey)
 
         if module_name in KNOWN_GITSEC_BUG_MODULES:
             item.add_marker(pytest.mark.known_gitsec_bug)

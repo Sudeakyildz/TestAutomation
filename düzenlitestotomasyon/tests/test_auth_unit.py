@@ -4,7 +4,14 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from utils.auth import sign_in_for_token
+from utils.auth import clear_sign_in_token_cache, sign_in_for_token
+
+
+@pytest.fixture(autouse=True)
+def _reset_auth_cache():
+    clear_sign_in_token_cache()
+    yield
+    clear_sign_in_token_cache()
 
 
 def test_sign_in_for_token_success():

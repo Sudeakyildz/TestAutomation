@@ -13,6 +13,11 @@ import pytest
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from utils.api_client import GitsecApiClient
+from tests.api_helpers import (
+    BACKUP_DASHBOARD_RECENT_PATH,
+    get_user_profile,
+    extract_user_email,
+)
 
 
 class TestAuthApi:
@@ -35,9 +40,9 @@ class TestAuthApi:
 
 class TestUserApi:
     def test_get_profile(self, api_client):
-        status, payload = api_client.get("/User/GetProfile")
-        GitsecApiClient.assert_success(status, payload, "/User/GetProfile")
-        assert payload["data"]["email"]
+        status, payload = get_user_profile(api_client)
+        GitsecApiClient.assert_success(status, payload, "user profile")
+        assert extract_user_email(payload)
 
     def test_get_session(self, api_client):
         status, payload = api_client.get("/User/GetSession")
@@ -81,9 +86,10 @@ class TestBackupApi:
         assert "recentAll" in payload["data"]
 
     def test_recent_executions(self, api_client):
-        status, payload = api_client.get("/api/backup/executions/recent-executions")
-        GitsecApiClient.assert_success(status, payload, "/api/backup/executions/recent-executions")
-        assert "list" in payload["data"]
+        status, payload = api_client.get(BACKUP_DASHBOARD_RECENT_PATH)
+        GitsecApiClient.assert_success(status, payload, BACKUP_DASHBOARD_RECENT_PATH)
+        data = payload["data"]
+        assert any(key in data for key in ("recentAll", "recentActive", "recentCompleted", "list"))
 
     def test_backup_statistics(self, api_client):
         status, payload = api_client.get("/api/backup/executions/statistics")

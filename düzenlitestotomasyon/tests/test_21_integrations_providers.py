@@ -1,6 +1,6 @@
 """
 21. ENTEGRASYON TEST — Bitbucket, GitLab, provider sync
-Henüz zayıf kalan provider entegrasyon hamleleri.
+Bitbucket/GitLab OAuth E2E hesap olmadigi icin ertelendi — sadece sayfa + API smoke.
 """
 import os
 import sys

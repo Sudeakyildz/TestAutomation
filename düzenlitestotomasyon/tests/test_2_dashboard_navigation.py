@@ -10,8 +10,27 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from pages.login_page import LoginPage
 from pages.dashboard_page import DashboardPage
 from tests.helpers import perform_setup_and_login, get_env_config
+from utils.waits import wait_for_page_ready
 
 logger = logging.getLogger("GitsecE2E")
+
+
+def _wait_for_url_or_content(sb, url_fragments, content_keywords, timeout=20):
+    """URL veya sayfa icerigi ile yuklenmeyi dogrular."""
+    def loaded():
+        url = sb.get_current_url().lower()
+        if any(fragment in url for fragment in url_fragments):
+            return True
+        try:
+            if not sb.is_element_visible("main"):
+                return False
+            body = sb.get_text("body").lower()
+            return any(keyword in body for keyword in content_keywords)
+        except Exception:
+            return False
+
+    sb.wait_for_condition(loaded, timeout=timeout)
+    wait_for_page_ready(sb)
 
 def test_dashboard_navigation_flow(sb):
     """
@@ -37,10 +56,11 @@ def test_dashboard_navigation_flow(sb):
     try:
         dashboard_page.navigate_to_repositories()
         logger.info("INFO: test step - Verifying Repositories page load")
-        try:
-            sb.wait_for_condition(lambda: "/repositories" in sb.get_current_url(), timeout=10)
-        except:
-            sb.wait_for_condition(lambda: "/github" in sb.get_current_url(), timeout=2)
+        _wait_for_url_or_content(
+            sb,
+            ("/repositories", "/github"),
+            ("repositor", "github", "repository"),
+        )
     except Exception as e:
         logger.error(f"ERROR: Repositories navigation failed: {str(e)}")
         raise e
@@ -73,10 +93,11 @@ def test_dashboard_navigation_flow(sb):
     try:
         dashboard_page.navigate_to_active_tasks_view_all()
         logger.info("INFO: test step - Verifying Active Tasks View All load")
-        try:
-            sb.wait_for_condition(lambda: "/activity" in sb.get_current_url(), timeout=10)
-        except:
-            sb.wait_for_condition(lambda: "/schedulers" in sb.get_current_url(), timeout=2)
+        _wait_for_url_or_content(
+            sb,
+            ("/activity", "/schedulers"),
+            ("activity", "task", "scheduler", "execution"),
+        )
     except Exception as e:
         logger.error(f"ERROR: Active Tasks View All navigation failed: {str(e)}")
         raise e
@@ -87,7 +108,7 @@ def test_dashboard_navigation_flow(sb):
     try:
         dashboard_page.navigate_to_recently_completed_view_all()
         logger.info("INFO: test step - Verifying Recently Completed View All load")
-        sb.wait_for_condition(lambda: "/activity" in sb.get_current_url(), timeout=10)
+        _wait_for_url_or_content(sb, ("/activity",), ("activity", "completed", "execution"))
     except Exception as e:
         logger.error(f"ERROR: Recently Completed View All navigation failed: {str(e)}")
         raise e

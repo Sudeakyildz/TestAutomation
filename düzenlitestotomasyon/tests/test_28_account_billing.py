@@ -9,6 +9,7 @@ import pytest
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
+from tests.api_helpers import get_user_profile, extract_user_email
 from tests.helpers import perform_setup_and_login, dismiss_ui_blockers, get_env_config
 from utils.api_client import GitsecApiClient
 
@@ -16,11 +17,11 @@ logger = __import__("logging").getLogger("GitsecE2E")
 
 
 def test_update_profile_readonly_fields(api_client):
-    """GetProfile ile mevcut profil doğrulanır."""
-    status, payload = api_client.get("/User/GetProfile")
-    GitsecApiClient.assert_success(status, payload, "/User/GetProfile")
+    """Profil API ile mevcut profil doğrulanır."""
+    status, payload = get_user_profile(api_client)
+    GitsecApiClient.assert_success(status, payload, "user profile")
     profile = payload["data"]
-    assert profile.get("email")
+    assert extract_user_email(payload)
     assert profile.get("name") or profile.get("firstName") or profile.get("surname") or profile.get("lastName")
 
 

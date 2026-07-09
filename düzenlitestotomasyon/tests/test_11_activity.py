@@ -4,12 +4,12 @@ Activity sayfası, filtreler ve bildirim alanı.
 """
 import os
 import sys
-import time
 import logging
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from tests.helpers import perform_setup_and_login, dismiss_ui_blockers, get_env_config, assert_main_visible
+from tests.journey_helpers import open_workspace_path, page_has_table_or_content
 from utils.api_client import GitsecApiClient
 
 logger = logging.getLogger("GitsecE2E")
@@ -19,12 +19,9 @@ def test_activity_page_loads(sb):
     """Activity sayfası yüklenir."""
     cfg = get_env_config()
     perform_setup_and_login(sb)
-    sb.open(f"{cfg['base_url']}/{cfg['workspace_id']}/activity")
-    time.sleep(3)
-    dismiss_ui_blockers(sb)
+    open_workspace_path(sb, cfg, "activity")
+    assert page_has_table_or_content(sb, "activity", "task", "execution", "completed", "aktivite", "backup")
     assert_main_visible(sb)
-    body = sb.get_text("body").lower()
-    assert "activity" in body or "aktivite" in body or "task" in body or "backup" in body
     logger.info("INFO: test step - Activity page loaded")
 
 
@@ -35,10 +32,15 @@ def test_activity_from_dashboard_links(sb):
     cfg = get_env_config()
     dashboard = perform_setup_and_login(sb)
     dashboard.navigate_to_active_tasks_view_all()
-    assert "activity" in sb.get_current_url() or "scheduler" in sb.get_current_url()
+    sb.wait_for_condition(
+        lambda: "activity" in sb.get_current_url() or "scheduler" in sb.get_current_url(),
+        timeout=15,
+    )
+    assert_main_visible(sb)
     dashboard.return_to_dashboard(cfg["base_url"], cfg["workspace_id"])
     dashboard.navigate_to_recently_completed_view_all()
-    assert "activity" in sb.get_current_url()
+    sb.wait_for_condition(lambda: "activity" in sb.get_current_url(), timeout=15)
+    assert_main_visible(sb)
     logger.info("INFO: test step - Dashboard activity links work")
 
 

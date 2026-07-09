@@ -17,11 +17,8 @@ ADD_PROVIDER_PATHS = (
 
 
 def is_ci():
-    """GitHub Actions veya CI ortaminda True."""
-    return (
-        os.getenv("CI", "").lower() in ("true", "1", "yes")
-        or os.getenv("GITHUB_ACTIONS", "").lower() == "true"
-    )
+    """Yalnizca GitHub Actions CI kosusunu tespit eder."""
+    return os.getenv("GITHUB_ACTIONS", "").lower() == "true"
 
 
 def dismiss_ui_blockers(sb):
@@ -348,12 +345,7 @@ def perform_setup_and_login(sb):
     login_page = LoginPage(sb)
     loaded = False
 
-    if is_ci():
-        logger.info("INFO: test step - CI detected; forcing fresh API login (no cookie reuse)")
-        loaded = login_page.api_login(base_url, email, password)
-        if loaded:
-            sb.open(dashboard_url)
-    else:
+    if not is_ci():
         loaded = login_page.load_session_cookies(base_url)
         if loaded:
             logger.info("INFO: test step - Reusing existing session cookies to bypass login")
@@ -361,10 +353,7 @@ def perform_setup_and_login(sb):
             wait_for_page_ready(sb)
             if _session_needs_refresh(sb, base_url, workspace_id):
                 logger.info("INFO: test step - Session expired or invalid. Re-authenticating...")
-                loaded = login_page.api_login(base_url, email, password)
-                if loaded:
-                    sb.open(dashboard_url)
-                    login_page.save_session_cookies()
+                loaded = False
 
     if not loaded:
         logger.info("INFO: test step - No valid cookies found, doing full login / API bypass")

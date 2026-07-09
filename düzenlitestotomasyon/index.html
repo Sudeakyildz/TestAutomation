@@ -204,6 +204,21 @@
       padding: 4px;
     }
 
+    .preflight-toggle {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--text-muted);
+      cursor: pointer;
+      user-select: none;
+      white-space: nowrap;
+    }
+
+    .preflight-toggle input {
+      accent-color: var(--accent);
+    }
+
     .toggle-btn {
       padding: 8px 16px;
       border-radius: 6px;
@@ -898,6 +913,16 @@
           <button class="toggle-btn active" id="headless-btn" onclick="setHeadless(true)">Arka Planda</button>
           <button class="toggle-btn" id="headed-btn" onclick="setHeadless(false)">Canlı İzle (Arayüzlü)</button>
         </div>
+
+        <label class="preflight-toggle" title="Her kosuda oturum, log ve sonuc rozetlerini sifirlar; login testi bastan calisir">
+          <input type="checkbox" id="fresh-start-checkbox" checked onchange="setFreshStart(this.checked)">
+          Sıfırdan başla
+        </label>
+
+        <label class="preflight-toggle" title="Staging API gecici 500 verirse preflight'i atlayip testleri calistirir">
+          <input type="checkbox" id="skip-preflight-checkbox" onchange="setSkipPreflight(this.checked)">
+          Preflight atla
+        </label>
         
         <button class="btn btn-secondary" id="run-smoke-btn" onclick="runMarkerSuite('smoke')" style="padding: 10px 16px; font-size: 13px;" title="API smoke + login + dashboard nav">
           Smoke
@@ -1079,6 +1104,8 @@
 
   <script>
     let isHeadless = true;
+    let skipPreflight = false;
+    let freshStart = true;
     let testsList = [];
     let testStatuses = {};
     let testResults = {};
@@ -1212,6 +1239,46 @@
       document.getElementById('live-mode-badge').innerText = headless ? 'Arka Planda' : 'Canlı İzle (Tarayıcı Açık)';
     }
 
+    function setSkipPreflight(checked) {
+      skipPreflight = !!checked;
+    }
+
+    function setFreshStart(checked) {
+      freshStart = !!checked;
+    }
+
+    async function prepareFreshStart() {
+      if (!freshStart) return;
+      try {
+        await fetch('/api/reset', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ logs: true, session: true, results: true }),
+        });
+      } catch (err) {
+        console.warn('Panel reset failed:', err);
+      }
+      clearConsole();
+      suiteErrors = [];
+      testsList.forEach(t => {
+        testStatuses[t.filename] = 'pending';
+        delete testResults[t.filename];
+      });
+      recalculateStats();
+      renderTestsList();
+      renderResultsSummary();
+    }
+
+    function buildRunPayload(extra = {}) {
+      const { freshStart: runFresh, ...rest } = extra;
+      return {
+        headed: !isHeadless,
+        skipPreflight,
+        freshStart: !!runFresh,
+        ...rest,
+      };
+    }
+
     function updateFilterCounts() {
       const apiCount = testsList.filter(t => t.category === 'API').length;
       const e2eCount = testsList.filter(t => t.category === 'E2E').length;
@@ -1239,8 +1306,12 @@
 
     async function runMarkerSuite(markers) {
       if (isSuiteRunning || markerResolveHandler) return;
-      clearConsole();
-      suiteErrors = [];
+      if (freshStart) {
+        await prepareFreshStart();
+      } else {
+        clearConsole();
+        suiteErrors = [];
+      }
       switchTab('dashboard');
       updateRunningState(true);
       appendTerminalText(`==================================================\n`);
@@ -1253,7 +1324,7 @@
           const res = await fetch('/api/run', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ markers, headed: !isHeadless }),
+            body: JSON.stringify(buildRunPayload({ markers, freshStart: freshStart })),
           });
           const data = await res.json();
           if (data.error) {
@@ -1441,7 +1512,7 @@
       }).join('');
     }
 
-    async function runSingleTest(testFile) {
+    async function runSingleTest(testFile, options = {}) {
       testStatuses[testFile] = 'running';
       renderTestsList();
       switchTab('dashboard');
@@ -1452,7 +1523,10 @@
           const res = await fetch('/api/run', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ testFile, headed: !isHeadless }),
+            body: JSON.stringify(buildRunPayload({
+              testFile,
+              freshStart: !!options.freshStart,
+            })),
           });
           const data = await res.json();
           if (data.error) {
@@ -1473,10 +1547,14 @@
 
     async function runTests(testFile) {
       if (testFile) {
-        clearConsole();
+        if (freshStart) {
+          await prepareFreshStart();
+        } else {
+          clearConsole();
+        }
         suiteErrors = [];
         appendTerminalText(`[PANEL] Tek test başlatılıyor: ${testFile}\n\n`);
-        await runSingleTest(testFile);
+        await runSingleTest(testFile, { freshStart });
         recalculateStats();
         renderResultsSummary();
         return;
@@ -1484,8 +1562,12 @@
 
       if (isSuiteRunning) return;
       isSuiteRunning = true;
+      if (freshStart) {
+        await prepareFreshStart();
+      } else {
+        clearConsole();
+      }
       suiteErrors = [];
-      clearConsole();
       switchTab('dashboard');
       updateRunningState(true);
 
